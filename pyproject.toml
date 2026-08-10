@@ -23,6 +23,7 @@ dev = [
     "hypothesis>=6.112",
     "testcontainers[postgres,redis]>=4.8",
     "types-PyYAML>=6.0",
+    "types-psutil>=6.0",
     "pre-commit>=3.8",
 ]
 
