@@ -13,3 +13,6 @@ name: dojo
 
 include:
   - compose/core.yml
+  - compose/ai.yml
+  - compose/analytics.yml
+  - compose/storage.yml

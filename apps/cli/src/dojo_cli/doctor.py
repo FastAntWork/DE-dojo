@@ -27,9 +27,11 @@ CORE_PORTS: Final[dict[int, str]] = {
 OPTIONAL_PORTS: Final[dict[int, str]] = {
     11434: "ollama (профиль ai)",
     9092: "kafka (профиль analytics)",
-    8123: "clickhouse (профиль analytics)",
+    8123: "clickhouse http (профиль analytics)",
+    9000: "clickhouse native (профиль analytics)",
     3000: "grafana (профиль analytics)",
     9090: "prometheus (профиль analytics)",
+    9010: "minio api (профиль storage)",
     9001: "minio console (профиль storage)",
     27017: "mongodb (профиль storage)",
 }
@@ -190,6 +192,31 @@ def check_repo_location(repo: Path, hw: HardwareInfo) -> Check:
     return Check("расположение репо", Status.OK, resolved)
 
 
+def check_gpu_runtime(hw: HardwareInfo) -> Check:
+    """Видит ли docker видеокарту.
+
+    Отдельно от check_llm: наличие GPU в системе и доступность её внутри
+    контейнера — разные вещи. В WSL nvidia-smi работает почти всегда, а вот
+    проброс в контейнер требует nvidia-container-toolkit, и без него ollama
+    молча уходит на CPU, где 7B выдаёт единицы токенов в секунду.
+    """
+    name = "gpu в докере"
+    if hw.gpu_name is None:
+        return Check(name, Status.WARN, "видеокарта не обнаружена, проверять нечего")
+
+    code, runtimes = _run(["docker", "info", "--format", "{{json .Runtimes}}"])
+    if code != 0:
+        return Check(name, Status.WARN, "демон не ответил")
+    if "nvidia" in runtimes:
+        return Check(name, Status.OK, "рантайм nvidia доступен")
+    return Check(
+        name,
+        Status.WARN,
+        "nvidia-container-toolkit не установлен: ollama в контейнере пойдёт на CPU. "
+        "Инструкция по установке — в шапке compose/ai.gpu.yml",
+    )
+
+
 def check_llm(hw: HardwareInfo) -> tuple[Check, LlmProfile]:
     profile = pick_llm_profile(hw.vram_gib)
     if hw.gpu_name is None:
@@ -218,6 +245,7 @@ def run_all(repo: Path) -> tuple[list[Check], HardwareInfo, LlmProfile]:
         check_swap(hw),
         check_disk(hw),
         gpu_check,
+        check_gpu_runtime(hw),
         check_repo_location(repo, hw),
         *check_docker(),
         *check_ports(CORE_PORTS, required=True),

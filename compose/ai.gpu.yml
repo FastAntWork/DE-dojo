@@ -1,0 +1,30 @@
+# Оверлей: отдаёт ollama видеокарту.
+#
+# Требует установленного nvidia-container-toolkit — без него docker не знает
+# про драйвер nvidia и запуск падает. Проверить: `dojo doctor`, строка
+# «gpu в докере». Установка (нужен sudo):
+#
+#   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+#     | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+#   curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+#     | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+#     | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+#   sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+#   sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+#
+# Использование:
+#   docker compose -f docker-compose.yml -f compose/ai.gpu.yml --profile ai up -d
+#
+# Отдельным файлом, а не в ai.yml: секция device reservations роняет запуск
+# на машине без тулкита, и профиль ai перестал бы работать вообще вместо
+# того, чтобы работать медленно.
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

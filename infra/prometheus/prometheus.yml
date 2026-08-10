@@ -1,0 +1,23 @@
+# Метрики самого Dojo. Дашборд «здоровье Dojo» — тоже учебный материал:
+# на нём разбираются RED и USE в Фазе 4.
+
+global:
+  # Одна инсталляция на одного человека: секундная гранулярность здесь не
+  # нужна, а место на диске экономит заметно.
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    instance: dojo-local
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: dojo-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+    # API живёт в профиле core и поднят почти всегда, но если его нет,
+    # Prometheus просто пометит цель как down — это нормальное состояние,
+    # а не повод падать.

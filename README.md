@@ -40,18 +40,33 @@ make migrate
 Весь стек одновременно не влезает в 16 ГБ — и не должен. Сервисы разложены по профилям,
 поднимается только то, что нужно прямо сейчас:
 
-| Профиль | Сервисы | ~RAM |
-|---|---|---|
-| `core` (по умолчанию) | postgres, redis, api, web | 2.5 ГБ |
-| `ai` | ollama | 6 ГБ |
-| `analytics` | kafka (KRaft), clickhouse, grafana, prometheus | 4 ГБ |
-| `storage` | minio, mongodb | 1 ГБ |
-| `sandbox` | сеть без egress для Runner; максимум один стенд лабы | 2 ГБ |
+| Профиль | Сервисы | Лимит | Замерено в покое |
+|---|---|---|---|
+| `core` (по умолчанию) | postgres, redis, api | 2.2 ГБ | ~70 МБ |
+| `ai` | ollama | 7 ГБ | зависит от модели |
+| `analytics` | kafka (KRaft), clickhouse, prometheus, grafana | 3.6 ГБ | ~660 МБ |
+| `storage` | minio, mongodb | 1.1 ГБ | ~250 МБ |
+| `sandbox` | сеть без egress для Runner; максимум один стенд лабы | 2 ГБ | — |
 
 ```bash
 make up                       # core
 make up PROFILE=ai            # core + ai
-make up PROFILE=full          # всё; предупредит, если RAM мало
+make up PROFILE=analytics     # core + analytics
+```
+
+Лимиты — это потолки `mem_limit`, а не занятая память: в покое стек ест на
+порядок меньше. Но одновременно `ai` и `analytics` при 10 ГБ, отданных WSL,
+не живут, и это не недоработка: локальная модель и аналитика нужны в разные
+моменты занятия.
+
+**GPU для ollama.** Проброс видеокарты в контейнер требует
+`nvidia-container-toolkit`. Без него профиль `ai` работает, но на CPU — для 7B
+это единицы токенов в секунду вместо десятков. Проверить: `make doctor`,
+строка «gpu в докере». Инструкция по установке — в шапке `compose/ai.gpu.yml`,
+после неё запуск с оверлеем:
+
+```bash
+docker compose -f docker-compose.yml -f compose/ai.gpu.yml --profile ai up -d
 ```
 
 ## Устройство репозитория

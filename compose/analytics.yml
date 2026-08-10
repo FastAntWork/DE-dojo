@@ -1,0 +1,148 @@
+# Профиль analytics — шина событий обучения и витрина прогресса.
+#     docker compose --profile analytics up -d    (или make up PROFILE=analytics)
+#
+# Это не оверинжиниринг ради резюме: те же Kafka и ClickHouse одновременно
+# являются предметом изучения в Фазе 3, и дашборд «моё обучение» строится по
+# собственным данным пользователя.
+
+services:
+  kafka:
+    # Официальный образ Apache в режиме KRaft: ZooKeeper не нужен, что экономит
+    # и память, и один контейнер.
+    image: apache/kafka:3.9.0
+    container_name: dojo-kafka
+    profiles: [analytics]
+    restart: unless-stopped
+    ports:
+      # Слушатель для хоста отдельный: внутри сети брокер представляется как
+      # kafka:9092, а клиент с хоста по этому имени не достучится.
+      - "127.0.0.1:${KAFKA_HOST_PORT:-9092}:29092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://127.0.0.1:${KAFKA_HOST_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Брокер один, поэтому фактор репликации везде 1: значения по умолчанию
+      # рассчитаны на кластер из трёх и на одиночном узле просто не работают.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    mem_limit: ${MEM_KAFKA:-1300m}
+    cpus: 2.0
+    networks: [dojo]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: dojo-clickhouse
+    profiles: [analytics]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "127.0.0.1:${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    environment:
+      CLICKHOUSE_DB: dojo
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-dojo}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-dojo_local_dev}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      # Отдельными файлами, а не подменой каталогов: в config.d образа лежит
+      # docker_related_config.xml с настройкой listen_host, и затирать его нельзя.
+      - ../infra/clickhouse/dojo-config.xml:/etc/clickhouse-server/config.d/dojo.xml:ro
+      - ../infra/clickhouse/dojo-users.xml:/etc/clickhouse-server/users.d/dojo.xml:ro
+    ulimits:
+      # ClickHouse открывает очень много файлов; дефолтный лимит контейнера
+      # он превышает и ругается в лог при каждом старте.
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      # Именно 127.0.0.1, а не localhost: busybox-wget резолвит localhost в ::1,
+      # а сервер слушает только IPv4 (см. listen_host в dojo-config.xml).
+      # С localhost проба вечно возвращала «connection refused», контейнер
+      # навсегда оставался в starting, и depends_on: service_healthy на нём
+      # висел бы бесконечно — при том что снаружи порт прекрасно отвечал.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: ${MEM_CLICKHOUSE:-1500m}
+    cpus: 2.0
+    networks: [dojo]
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: dojo-prometheus
+    profiles: [analytics]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-9090}:9090"
+    volumes:
+      - ../infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Метрики одного человека за месяц занимают немного, а неограниченное
+      # хранение на ноутбуке рано или поздно съедает диск.
+      - --storage.tsdb.retention.time=30d
+    mem_limit: ${MEM_PROMETHEUS:-512m}
+    cpus: 1.0
+    networks: [dojo]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: dojo-grafana
+    profiles: [analytics]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-dojo_local_dev}
+      # Инсталляция локальная и однопользовательская, регистрация не нужна.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Плагин ClickHouse качается из интернета при первом старте. Пока он не
+      # установлен, дашборды строятся по Prometheus. Это единственное место в
+      # analytics, которое не работает полностью офлайн.
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-}
+    volumes:
+      - ../infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    mem_limit: ${MEM_GRAFANA:-384m}
+    cpus: 1.0
+    networks: [dojo]
+
+volumes:
+  kafka-data:
+  clickhouse-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  dojo:
+    name: dojo
+    driver: bridge

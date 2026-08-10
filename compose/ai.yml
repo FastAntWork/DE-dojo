@@ -1,0 +1,50 @@
+# Профиль ai — локальная LLM. Поднимается явно:
+#     docker compose --profile ai up -d       (или make up PROFILE=ai)
+#
+# ВАЖНО: здесь ollama работает на CPU. Проброс GPU в контейнер требует
+# nvidia-container-toolkit, которого в системе может не быть — проверь
+# `dojo doctor`. Когда поставишь, добавь оверлей compose/ai.gpu.yml.
+# Разница принципиальная: 7B на CPU это единицы токенов в секунду, на 4060 —
+# несколько десятков.
+
+services:
+  ollama:
+    image: ollama/ollama:0.5.7
+    container_name: dojo-ollama
+    profiles: [ai]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      # Веса моделей — самое объёмное в проекте (7B q4 это ~4.7 ГБ).
+      # Именованный том, чтобы docker compose down их не сносил.
+      - ollama-models:/root/.ollama
+    environment:
+      # Держим загруженной одну модель: роли переключаются сменой системного
+      # промпта, а не модели. Выгрузка весов на каждую смену роли съела бы
+      # больше времени, чем сама генерация.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      # Модель не выгружается между запросами в течение получаса: занятие
+      # состоит из коротких обращений с паузами на чтение и решение задач.
+      OLLAMA_KEEP_ALIVE: "30m"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    mem_limit: ${MEM_OLLAMA:-7g}
+    cpus: 6.0
+    networks: [dojo]
+
+volumes:
+  ollama-models:
+
+# Определение сети повторяется во всех файлах профилей дословно: compose
+# сливает одинаковые объявления, а external: true потребовал бы создавать
+# сеть заранее руками.
+networks:
+  dojo:
+    name: dojo
+    driver: bridge
