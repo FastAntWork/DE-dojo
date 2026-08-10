@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from dojo_cli import content
+from dojo_cli import content, quiz
 from dojo_cli.doctor import Status, run_all
 
 app = typer.Typer(
@@ -19,6 +19,7 @@ app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(content.app, name="content")
+app.add_typer(quiz.app, name="quiz")
 
 console = Console()
 
