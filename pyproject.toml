@@ -14,6 +14,9 @@ members = ["apps/api", "apps/cli", "apps/runner"]
 dev = [
     "ruff>=0.6",
     "mypy>=1.11",
+    # asyncpg поставляется без py.typed, а mypy strict с disallow_any_unimported
+    # превращает любой Connection в Any и роняет проверку.
+    "asyncpg-stubs>=0.29",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
@@ -52,6 +55,10 @@ select = [
 ignore = [
     "S101",      # assert — нормально в тестах
     "B008",      # Depends() в дефолтах аргументов — идиома FastAPI
+    # RUF001-003 ищут кириллические буквы, похожие на латинские. Правило
+    # защищает от омоглифов в ASCII-проектах; здесь вся документация и
+    # сообщения об ошибках по-русски, поэтому оно даёт только шум.
+    "RUF001", "RUF002", "RUF003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -78,9 +85,9 @@ disallow_any_unimported = true
 show_error_codes = true
 pretty = true
 mypy_path = ["apps/api/src", "apps/cli/src", "apps/runner/src"]
-# tools/ и tests/ добавляются сюда в коммитах, где в них появляется первый .py:
+# tools/ добавится сюда в коммите, где появится content_validate.py:
 # mypy падает с ошибкой на каталоге без единого модуля.
-files = ["apps"]
+files = ["apps", "tests"]
 exclude = "^content/katas/"
 
 [[tool.mypy.overrides]]
