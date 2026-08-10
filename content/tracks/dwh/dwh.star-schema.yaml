@@ -1,0 +1,27 @@
+id: dwh.star-schema
+title: "Размерная модель: факты, измерения, звезда и снежинка"
+track: dwh
+level: 3
+phase: 3
+priority: core
+estimated_hours: 7
+prereq: [dwh.concepts, dwh.normal-forms]
+job_tags: [dwh, data-modeling, olap, bi, kimball]
+
+objectives:
+  - "Разложить бизнес-процесс на таблицу фактов и таблицы измерений"
+  - "Определить гранулярность факта и объяснить, почему её выбирают до всего остального"
+  - "Отличить аддитивный факт от полуаддитивного и неаддитивного и сказать, что с ними можно делать"
+  - "Обосновать выбор между звездой и снежинкой через цену соединений и обновлений"
+  - "Объяснить, зачем измерению суррогатный ключ, если у сущности уже есть бизнес-ключ"
+
+theory:
+  read: theory/dwh/dwh.star-schema.md
+  rag_scope: [postgres-docs, clickhouse-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dwh.star-schema.yaml
+    difficulty: 0.55
+
+review_after_days: [1, 4, 12, 30]

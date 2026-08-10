@@ -1,0 +1,26 @@
+id: dwh.normal-forms
+title: "Нормальные формы и осознанная денормализация"
+track: dwh
+level: 2
+phase: 2
+priority: core
+estimated_hours: 5
+prereq: [sql.joins]
+job_tags: [sql, data-modeling, dwh, rdbms]
+
+objectives:
+  - "Назвать первые три нормальные формы и определить, какой из них соответствует таблица"
+  - "Объяснить функциональную зависимость и найти её нарушение в схеме"
+  - "Показать аномалии вставки, обновления и удаления на конкретной ненормализованной таблице"
+  - "Обосновать денормализацию цифрами, а не удобством, и назвать её цену"
+
+theory:
+  read: theory/dwh/dwh.normal-forms.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dwh.normal-forms.yaml
+    difficulty: 0.4
+
+review_after_days: [1, 4, 12, 30]

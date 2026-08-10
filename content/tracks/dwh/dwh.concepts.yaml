@@ -5,7 +5,7 @@ level: 2
 phase: 3
 priority: core
 estimated_hours: 8
-prereq: [pg.basics]
+prereq: [pg.basics, dwh.normal-forms]
 job_tags: [dwh, etl, elt, data-modeling, olap, architecture]
 
 objectives:
