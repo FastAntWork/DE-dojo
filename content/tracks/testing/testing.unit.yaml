@@ -1,0 +1,25 @@
+id: testing.unit
+title: "Модульные тесты: pytest, фикстуры, моки"
+track: testing
+level: 2
+estimated_hours: 8
+prereq: [python.core]
+job_tags: [python, pytest, testing, ci]
+
+objectives:
+  - "Написать тест, который проверяет поведение, а не реализацию, и объяснить разницу"
+  - "Выбрать область видимости фикстуры и понимать цену scope=session"
+  - "Разложить один сценарий в parametrize вместо копирования тела теста"
+  - "Замокать внешнюю зависимость и назвать признак, по которому мок становится вредным"
+  - "Объяснить, почему тест без ассерта или с ассертом на мок не проверяет ничего"
+
+theory:
+  read: theory/testing/testing.unit.md
+  rag_scope: [pytest-docs, python-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/testing.unit.yaml
+    difficulty: 0.4
+
+review_after_days: [1, 4, 12, 30]

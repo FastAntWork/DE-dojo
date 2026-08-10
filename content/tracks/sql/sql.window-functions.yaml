@@ -1,0 +1,25 @@
+id: sql.window-functions
+title: "SQL: оконные функции"
+track: sql
+level: 3
+estimated_hours: 8
+prereq: [sql.subqueries-cte]
+job_tags: [sql, postgresql, analytics, etl]
+
+objectives:
+  - "Объяснить, чем окно отличается от группировки: почему строки не схлопываются"
+  - "Прочитать frame clause и предсказать результат для ROWS против RANGE при дублях в ORDER BY"
+  - "Выбрать между ROW_NUMBER, RANK и DENSE_RANK по условию задачи"
+  - "Собрать скользящее среднее и накопительный итог, не сползая на подзапросы"
+  - "Найти последнее значение в группе через LAST_VALUE и объяснить, почему без явного frame оно возвращает текущую строку"
+
+theory:
+  read: theory/sql/sql.window-functions.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/sql.window-functions.yaml
+    difficulty: 0.6
+
+review_after_days: [1, 4, 12, 30]

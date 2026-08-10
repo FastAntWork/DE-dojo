@@ -1,0 +1,25 @@
+id: sql.query-plans
+title: "SQL: планы запросов и как их читать"
+track: sql
+level: 4
+estimated_hours: 8
+prereq: [sql.window-functions, pg.basics]
+job_tags: [sql, postgresql, performance, etl]
+
+objectives:
+  - "Прочитать вывод EXPLAIN (ANALYZE, BUFFERS) и назвать самый дорогой узел плана"
+  - "Отличить оценку планировщика от фактических строк и понять, о чём говорит расхождение в разы"
+  - "Объяснить, когда Seq Scan быстрее Index Scan, и почему планировщик иногда прав"
+  - "Различить Nested Loop, Hash Join и Merge Join и сказать, при каких объёмах каждый уместен"
+  - "Найти по плану причину медленного запроса и назвать конкретное исправление, а не «добавить индекс»"
+
+theory:
+  read: theory/sql/sql.query-plans.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/sql.query-plans.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

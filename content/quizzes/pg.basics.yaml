@@ -1,0 +1,49 @@
+questions:
+  - id: pg-timestamptz-vs-timestamp
+    kind: single
+    prompt: |
+      Почему для отметки времени события обычно берут timestamptz, а не timestamp?
+    options:
+      - text: "timestamptz хранит момент времени в UTC и приводит его к часовому поясу сессии при чтении; timestamp хранит «стенные часы» без привязки"
+        correct: true
+      - text: "timestamptz занимает меньше места на диске"
+      - text: "timestamp не поддерживает сравнение и сортировку"
+      - text: "timestamptz хранит внутри название часового пояса вместе со значением"
+    explanation: |
+      Оба типа занимают 8 байт, и ни один не хранит имя пояса. Разница в семантике:
+      timestamptz — это момент на оси времени, timestamp — показания часов без
+      контекста. Смешение двух серверов в разных поясах на timestamp даёт данные,
+      которые невозможно корректно сравнить задним числом.
+    source: "postgres-docs:datatype-datetime.html"
+
+  - id: pg-schema-vs-database
+    kind: single
+    prompt: |
+      Чем схема отличается от базы данных в PostgreSQL?
+    options:
+      - text: "Схема — пространство имён внутри базы; объекты разных схем одной базы доступны в одном запросе, объекты разных баз — нет"
+        correct: true
+      - text: "Это синонимы, слово «схема» пришло из Oracle"
+      - text: "База лежит внутри схемы, а не наоборот"
+      - text: "Схема отличается только тем, что к ней нельзя выдать права"
+    explanation: |
+      Соединение открывается к конкретной базе, и запрос не может выйти за её
+      пределы без внешних механизмов (dblink, postgres_fdw). Схемы же — просто
+      каталоги имён внутри базы, и поиск по ним управляется search_path.
+
+  - id: pg-stat-activity-purpose
+    kind: single
+    prompt: |
+      Что показывает pg_stat_activity?
+    options:
+      - text: "По строке на каждый серверный процесс: текущий запрос, состояние, время начала и причину ожидания"
+        correct: true
+      - text: "Историю всех выполненных запросов с момента запуска сервера"
+      - text: "Статистику по размерам таблиц и индексов"
+      - text: "План последнего выполненного запроса"
+    explanation: |
+      Это срез «что происходит прямо сейчас», а не история — для истории нужен
+      pg_stat_statements. Ключевые поля при разборе инцидента: state, wait_event_type
+      и wait_event, xact_start и query. Долгий idle in transaction здесь же выдаёт
+      забытый COMMIT, который блокирует VACUUM.
+    source: "postgres-docs:monitoring-stats.html#MONITORING-PG-STAT-ACTIVITY-VIEW"

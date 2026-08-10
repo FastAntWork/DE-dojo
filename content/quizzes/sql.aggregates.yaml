@@ -1,0 +1,55 @@
+questions:
+  - id: aggregates-count-star-vs-column
+    kind: single
+    prompt: |
+      В таблице 100 строк, в 30 из них bonus равен NULL.
+      Что вернут `count(*)` и `count(bonus)`?
+    options:
+      - text: "100 и 70"
+        correct: true
+      - text: "100 и 100"
+      - text: "70 и 70"
+      - text: "100 и 30"
+    explanation: |
+      count(*) считает строки, count(выражение) — строки, где выражение не NULL.
+      То же правило у остальных агрегатов: avg(bonus) поделит сумму на 70, а не
+      на 100. Отсюда классическая ошибка в отчётах — «среднее» считается не по
+      той базе, по которой думает аналитик.
+    source: "postgres-docs:functions-aggregate.html"
+
+  - id: aggregates-where-vs-having
+    kind: single
+    prompt: |
+      Нужно взять только заказы 2024 года и оставить клиентов, у которых таких
+      заказов больше пяти. Куда какое условие?
+    options:
+      - text: "Год — в WHERE, количество — в HAVING"
+        correct: true
+      - text: "Оба условия в HAVING"
+      - text: "Оба условия в WHERE"
+      - text: "Год — в HAVING, количество — в WHERE"
+    explanation: |
+      WHERE отсекает строки до группировки, HAVING — группы после неё. Условие по
+      году относится к строке, поэтому дешевле отфильтровать заранее: в группировку
+      попадёт меньше данных. Условие на count() до группировки просто не существует.
+
+  - id: aggregates-filter-clause
+    kind: single
+    prompt: |
+      Что делает FILTER в запросе?
+
+          SELECT count(*) AS all_orders,
+                 count(*) FILTER (WHERE status = 'paid') AS paid_orders
+          FROM orders;
+    options:
+      - text: "Считает второй агрегат только по строкам, удовлетворяющим условию, за один проход по таблице"
+        correct: true
+      - text: "Фильтрует итоговый результат после агрегации, как HAVING"
+      - text: "Отбрасывает строки для обоих агрегатов сразу"
+      - text: "Это синоним WHERE, оставленный для совместимости"
+    explanation: |
+      FILTER — условная агрегация уровня SQL-стандарта, аналог
+      count(*) FILTER ≈ count(CASE WHEN ... THEN 1 END), но читается лучше и
+      работает для любых агрегатов. Оба счётчика вычисляются за один проход,
+      в отличие от варианта с двумя подзапросами.
+    source: "postgres-docs:sql-expressions.html#syntax-aggregates"

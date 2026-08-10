@@ -1,0 +1,24 @@
+id: pg.basics
+title: "PostgreSQL: устройство и повседневная работа"
+track: postgres
+level: 2
+estimated_hours: 4
+prereq: [sql.core.select]
+job_tags: [postgresql, sql, dba]
+
+objectives:
+  - "Ориентироваться в psql: подключение, \\d, \\dt, \\di, \\timing, вывод в файл"
+  - "Объяснить разницу между базой, схемой и search_path"
+  - "Назвать основные типы данных и сказать, почему timestamptz предпочтительнее timestamp"
+  - "Прочитать pg_stat_activity и понять, что сейчас делает сервер"
+
+theory:
+  read: theory/postgres/pg.basics.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/pg.basics.yaml
+    difficulty: 0.3
+
+review_after_days: [1, 4, 12, 30]

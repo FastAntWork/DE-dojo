@@ -1,0 +1,57 @@
+questions:
+  - id: select-alias-in-where
+    kind: find-error
+    prompt: |
+      Запрос падает с ошибкой «column "total" does not exist». Почему?
+
+          SELECT price * qty AS total
+          FROM order_items
+          WHERE total > 1000;
+    options:
+      - text: "WHERE вычисляется раньше SELECT, поэтому псевдоним ещё не существует"
+        correct: true
+      - text: "Псевдоним нужно писать в двойных кавычках"
+      - text: "Арифметика в SELECT требует явного приведения типов"
+      - text: "Нельзя фильтровать по вычисляемому выражению, только по колонке"
+    explanation: |
+      Логический порядок: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT.
+      Псевдоним рождается на шаге SELECT, то есть после WHERE. В ORDER BY он уже
+      доступен — ORDER BY выполняется позже. Исправление: повторить выражение в
+      WHERE или обернуть запрос в подзапрос/CTE.
+    source: "postgres-docs:queries.html#queries-select-lists"
+
+  - id: select-null-comparison
+    kind: single
+    prompt: |
+      В таблице 100 строк, в 10 из них поле manager_id пустое.
+      Сколько строк вернёт запрос?
+
+          SELECT count(*) FROM employees WHERE manager_id = NULL;
+    options:
+      - text: "0"
+        correct: true
+      - text: "10"
+      - text: "90"
+      - text: "100"
+    explanation: |
+      Сравнение с NULL даёт не TRUE и не FALSE, а UNKNOWN, и WHERE пропускает
+      только строки со значением TRUE. Поэтому = NULL не отбирает ничего никогда.
+      Нужно IS NULL. Это же объясняет, почему NOT IN с NULL в списке возвращает
+      пустой результат.
+    source: "postgres-docs:functions-comparison.html"
+
+  - id: select-distinct-vs-groupby
+    kind: single
+    prompt: |
+      Чем `SELECT DISTINCT dept FROM employees` отличается от
+      `SELECT dept FROM employees GROUP BY dept`?
+    options:
+      - text: "Результат одинаков; GROUP BY при этом позволяет добавить агрегаты, а DISTINCT нет"
+        correct: true
+      - text: "DISTINCT всегда быстрее, потому что не строит группы"
+      - text: "GROUP BY отбрасывает NULL, а DISTINCT сохраняет"
+      - text: "Результаты различаются: DISTINCT сравнивает строки целиком, GROUP BY — только первую колонку"
+    explanation: |
+      На одной колонке оба дают одинаковый набор значений, включая ровно один NULL.
+      Разница в возможностях: GROUP BY открывает агрегаты и HAVING. По скорости
+      однозначного победителя нет — план зависит от статистики и наличия индекса.

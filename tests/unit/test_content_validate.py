@@ -12,21 +12,37 @@ from typing import Any
 
 import pytest
 import yaml
+
 from tools.content_validate import Problem, validate
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-REAL_SCHEMA = REPO_ROOT / "content" / "schemas" / "skill.schema.json"
+REAL_SCHEMAS = REPO_ROOT / "content" / "schemas"
+
+# Минимальный валидный квиз: файлы в quizzes/ проверяются схемой, поэтому
+# заглушки «questions: []» здесь уже недостаточно.
+SAMPLE_QUIZ = """
+questions:
+  - id: sample-question
+    kind: single
+    prompt: "Вопрос-заглушка для тестов валидатора"
+    options:
+      - text: "Верный"
+        correct: true
+      - text: "Неверный"
+    explanation: "Объяснение-заглушка достаточной длины для схемы"
+"""
 
 
 @pytest.fixture
 def content(tmp_path: Path) -> Path:
-    """Пустой каталог content/ с настоящей схемой внутри."""
+    """Пустой каталог content/ с настоящими схемами внутри."""
     root = tmp_path / "content"
     (root / "schemas").mkdir(parents=True)
     (root / "tracks").mkdir()
     (root / "quizzes").mkdir()
-    shutil.copy(REAL_SCHEMA, root / "schemas" / "skill.schema.json")
-    (root / "quizzes" / "sample.yaml").write_text("questions: []\n", encoding="utf-8")
+    for schema in REAL_SCHEMAS.glob("*.schema.json"):
+        shutil.copy(schema, root / "schemas" / schema.name)
+    (root / "quizzes" / "sample.yaml").write_text(SAMPLE_QUIZ, encoding="utf-8")
     return root
 
 

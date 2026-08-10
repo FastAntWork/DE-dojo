@@ -164,6 +164,63 @@ def validate_references(
     return problems
 
 
+def validate_quizzes(content_root: Path, repo_root: Path) -> list[Problem]:
+    """Проверяет квизы схемой и правилами, которые схемой не выражаются.
+
+    Число верных вариантов зависит от kind, а JSON Schema такое условие
+    описывает только через громоздкий if/then. Проще и понятнее — кодом.
+    """
+    schema_path = content_root / "schemas" / "quiz.schema.json"
+    if not schema_path.is_file():
+        return [Problem(str(schema_path), "схема квиза не найдена")]
+
+    schema_data, problem = load_yaml(schema_path)
+    if schema_data is None:
+        return [problem] if problem else []
+    validator = Draft202012Validator(schema_data)
+
+    problems: list[Problem] = []
+
+    for path in sorted((content_root / "quizzes").glob("*.yaml")):
+        rel = path.relative_to(repo_root)
+        data, problem = load_yaml(path)
+        if data is None:
+            if problem:
+                problems.append(problem)
+            continue
+
+        for error in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
+            location = ".".join(str(part) for part in error.absolute_path) or "<корень>"
+            problems.append(Problem(f"{rel}:{location}", error.message))
+
+        seen: set[str] = set()
+        for index, question in enumerate(data.get("questions", [])):
+            if not isinstance(question, dict):
+                continue
+            question_id = question.get("id", f"<без id, индекс {index}>")
+
+            if question_id in seen:
+                problems.append(Problem(str(rel), f"дублирующийся id вопроса: {question_id}"))
+            seen.add(question_id)
+
+            correct = sum(1 for option in question.get("options", []) if option.get("correct"))
+            kind = question.get("kind")
+            expected: str | None = None
+            if kind in {"single", "find-error"} and correct != 1:
+                expected = "ровно один верный вариант"
+            elif kind == "multiple" and correct < 2:
+                expected = "минимум два верных варианта"
+            if expected is not None:
+                problems.append(
+                    Problem(
+                        str(rel),
+                        f"{question_id}: kind={kind} требует {expected}, найдено {correct}",
+                    )
+                )
+
+    return problems
+
+
 def validate_graph(skills: dict[str, Skill]) -> list[Problem]:
     """Проверяет, что prereq разрешимы и в графе нет циклов."""
     problems: list[Problem] = []
@@ -249,6 +306,7 @@ def validate(content_root: Path, repo_root: Path) -> list[Problem]:
             skills[skill_id] = skill
 
     problems += validate_graph(skills)
+    problems += validate_quizzes(content_root, repo_root)
     return problems
 
 

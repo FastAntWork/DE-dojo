@@ -1,0 +1,25 @@
+id: python.core
+title: "Python: типы, коллекции, функции, исключения"
+track: python
+level: 1
+estimated_hours: 10
+prereq: []
+job_tags: [python, etl]
+
+objectives:
+  - "Объяснить разницу между изменяемыми и неизменяемыми объектами и предсказать эффект мутации через две ссылки"
+  - "Выбрать структуру данных по требуемой сложности операций: list, dict, set, deque"
+  - "Назвать ловушку изменяемого значения по умолчанию в аргументе функции и обойти её"
+  - "Написать генератор вместо списка там, где данные не помещаются в память"
+  - "Обработать исключение по типу, а не через голый except, и понимать роль finally"
+
+theory:
+  read: theory/python/python.core.md
+  rag_scope: [python-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/python.core.yaml
+    difficulty: 0.3
+
+review_after_days: [1, 4, 12, 30]

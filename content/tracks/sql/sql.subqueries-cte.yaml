@@ -1,0 +1,24 @@
+id: sql.subqueries-cte
+title: "SQL: подзапросы и CTE"
+track: sql
+level: 3
+estimated_hours: 5
+prereq: [sql.joins, sql.aggregates]
+job_tags: [sql, postgresql]
+
+objectives:
+  - "Отличить коррелированный подзапрос от некоррелированного и понимать, почему первый выполняется на каждую строку"
+  - "Переписать IN-подзапрос через EXISTS и через JOIN, объяснив, когда каждый вариант уместен"
+  - "Собрать рекурсивный CTE для обхода иерархии и не получить бесконечный цикл"
+  - "Объяснить, когда CTE в Postgres становится оптимизационным барьером и что делает MATERIALIZED"
+
+theory:
+  read: theory/sql/sql.subqueries-cte.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/sql.subqueries-cte.yaml
+    difficulty: 0.5
+
+review_after_days: [1, 4, 12, 30]

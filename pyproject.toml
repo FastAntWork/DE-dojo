@@ -70,7 +70,7 @@ ignore = [
 "content/katas/**"  = ["ALL"]   # это учебный материал, а не код проекта
 
 [tool.ruff.lint.isort]
-known-first-party = ["dojo", "dojo_cli", "runner"]
+known-first-party = ["dojo", "dojo_cli", "runner", "tools"]
 
 [tool.ruff.format]
 docstring-code-format = true

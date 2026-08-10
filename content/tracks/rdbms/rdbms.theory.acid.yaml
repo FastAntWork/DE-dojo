@@ -1,0 +1,25 @@
+id: rdbms.theory.acid
+title: "Транзакции: ACID и уровни изоляции"
+track: rdbms
+level: 3
+estimated_hours: 6
+prereq: [pg.basics]
+job_tags: [postgresql, rdbms, architecture]
+
+objectives:
+  - "Раскрыть каждую букву ACID и привести пример нарушения каждой"
+  - "Назвать четыре аномалии — грязное чтение, неповторяемое чтение, фантом, потерянное обновление — и сказать, какой уровень изоляции каждую запрещает"
+  - "Объяснить, чем Repeatable Read в Postgres отличается от требований стандарта"
+  - "Выбрать уровень изоляции под задачу и обосновать цену выбора"
+  - "Описать, как MVCC даёт читателям не блокировать писателей"
+
+theory:
+  read: theory/rdbms/rdbms.theory.acid.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/rdbms.theory.acid.yaml
+    difficulty: 0.55
+
+review_after_days: [1, 4, 12, 30]

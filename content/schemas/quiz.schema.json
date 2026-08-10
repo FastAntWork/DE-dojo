@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://de-dojo.local/schemas/quiz.schema.json",
+  "title": "Набор вопросов квиза",
+  "description": "Файл content/quizzes/<skill-id>.yaml. Проверяется детерминированно: правильный вариант известен заранее, LLM в оценке не участвует.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["questions"],
+  "properties": {
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "prompt", "options", "explanation"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Стабильный идентификатор: по нему живёт статистика ответов, поэтому переименование = новый вопрос."
+        },
+        "kind": {
+          "enum": ["single", "multiple", "find-error"],
+          "description": "find-error — вопрос с кодом, где надо указать ошибку; это самый ценный формат для собеседований."
+        },
+        "prompt": { "type": "string", "minLength": 10 },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "minLength": 1 },
+              "correct": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Показывается после ответа независимо от того, верный он или нет: неверный ответ без объяснения ничему не учит."
+        },
+        "source": {
+          "type": "string",
+          "description": "Ссылка на раздел официальной документации в формате файл#секция."
+        }
+      }
+    }
+  }
+}

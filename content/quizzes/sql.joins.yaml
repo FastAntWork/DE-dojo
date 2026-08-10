@@ -1,0 +1,58 @@
+questions:
+  - id: joins-left-becomes-inner
+    kind: find-error
+    prompt: |
+      Задача: вывести всех клиентов и их заказы за 2024 год, включая клиентов
+      без заказов. Клиенты без заказов в результат не попадают. Почему?
+
+          SELECT c.id, o.total
+          FROM customers c
+          LEFT JOIN orders o ON o.customer_id = c.id
+          WHERE o.created_at >= '2024-01-01';
+    options:
+      - text: "Условие на правую таблицу в WHERE отбрасывает строки с NULL и превращает LEFT JOIN в INNER"
+        correct: true
+      - text: "LEFT JOIN требует, чтобы обе таблицы были отсортированы по ключу соединения"
+      - text: "Нужно писать RIGHT JOIN, потому что фильтр стоит по правой таблице"
+      - text: "Сравнение даты со строкой неявно отбрасывает NULL-строки"
+    explanation: |
+      Для клиента без заказов LEFT JOIN подставляет NULL во все колонки orders.
+      Дальше WHERE проверяет NULL >= '2024-01-01' → UNKNOWN → строка выбрасывается.
+      Фильтр по «необязательной» стороне нужно переносить в ON:
+      LEFT JOIN orders o ON o.customer_id = c.id AND o.created_at >= '2024-01-01'.
+
+  - id: joins-not-in-null
+    kind: single
+    prompt: |
+      В orders.customer_id есть NULL. Что вернёт запрос?
+
+          SELECT * FROM customers
+          WHERE id NOT IN (SELECT customer_id FROM orders);
+    options:
+      - text: "Пустой результат"
+        correct: true
+      - text: "Всех клиентов без заказов"
+      - text: "Всех клиентов"
+      - text: "Ошибку: подзапрос вернул NULL"
+    explanation: |
+      NOT IN разворачивается в id <> v1 AND id <> v2 AND ... AND id <> NULL.
+      Последнее слагаемое — UNKNOWN, а AND с UNKNOWN никогда не даст TRUE.
+      Результат всегда пуст. NOT EXISTS такой проблемы не имеет и обычно ещё и
+      лучше планируется — поэтому anti-join пишут через него.
+
+  - id: joins-many-to-many-explosion
+    kind: single
+    prompt: |
+      У клиента 3 заказа и 4 обращения в поддержку. Сколько строк вернёт
+      соединение customers → orders → tickets по customer_id для этого клиента?
+    options:
+      - text: "12"
+        correct: true
+      - text: "7"
+      - text: "4"
+      - text: "3"
+    explanation: |
+      Два независимых соединения «один-ко-многим» от одной таблицы дают
+      декартово произведение веток: 3 × 4 = 12. Классическая причина, по которой
+      SUM(orders.total) внезапно оказывается вчетверо больше правды. Лечится
+      агрегацией каждой ветки отдельно до соединения или подзапросами.

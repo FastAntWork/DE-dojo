@@ -1,0 +1,56 @@
+questions:
+  - id: window-last-value-default-frame
+    kind: find-error
+    prompt: |
+      Ожидалось последнее значение цены в каждой группе, а вернулась цена
+      текущей строки. Почему?
+
+          SELECT product_id, price,
+                 last_value(price) OVER (PARTITION BY product_id ORDER BY ts)
+          FROM prices;
+    options:
+      - text: "Рамка по умолчанию — RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, поэтому «последняя» строка это текущая"
+        correct: true
+      - text: "last_value не работает вместе с PARTITION BY"
+      - text: "Нужно убрать ORDER BY внутри OVER"
+      - text: "Нужен DISTINCT по product_id"
+    explanation: |
+      Как только в OVER появляется ORDER BY, включается рамка по умолчанию,
+      заканчивающаяся на текущей строке. Для настоящего последнего значения нужно
+      написать рамку явно:
+      OVER (PARTITION BY product_id ORDER BY ts
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING).
+    source: "postgres-docs:sql-expressions.html#syntax-window-functions"
+
+  - id: window-rows-vs-range
+    kind: single
+    prompt: |
+      В окне есть три строки с одинаковым значением в ORDER BY. Чем отличается
+      ROWS BETWEEN 1 PRECEDING AND CURRENT ROW от RANGE с той же границей?
+    options:
+      - text: "ROWS считает физические строки, RANGE включает все строки-дубли с тем же значением сортировки"
+        correct: true
+      - text: "Отличий нет, RANGE — устаревший синоним ROWS"
+      - text: "RANGE работает только с числовыми колонками"
+      - text: "ROWS требует уникального ORDER BY, иначе ошибка"
+    explanation: |
+      RANGE оперирует значениями: все строки-«ровесники» по ORDER BY попадают в
+      рамку целиком. ROWS оперирует позициями. На данных без дублей они совпадают,
+      и именно поэтому ошибку обычно ловят уже на проде — там дубли появляются.
+
+  - id: window-rank-vs-dense-rank
+    kind: single
+    prompt: |
+      Значения: 100, 100, 90. Какие номера присвоят RANK() и DENSE_RANK()
+      при ORDER BY value DESC?
+    options:
+      - text: "RANK: 1, 1, 3; DENSE_RANK: 1, 1, 2"
+        correct: true
+      - text: "RANK: 1, 2, 3; DENSE_RANK: 1, 1, 2"
+      - text: "RANK: 1, 1, 2; DENSE_RANK: 1, 1, 3"
+      - text: "Оба дадут 1, 1, 2"
+    explanation: |
+      RANK оставляет дырки после группы одинаковых значений, DENSE_RANK — нет.
+      ROW_NUMBER же присвоит 1, 2, 3 и при равенстве выберет порядок
+      недетерминированно, если ORDER BY не доопределён — отсюда «плавающие»
+      результаты между запусками.

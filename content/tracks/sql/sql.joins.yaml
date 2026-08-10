@@ -1,0 +1,25 @@
+id: sql.joins
+title: "SQL: соединения таблиц"
+track: sql
+level: 2
+estimated_hours: 6
+prereq: [sql.core.select]
+job_tags: [sql, postgresql, data-modeling]
+
+objectives:
+  - "Выбрать тип соединения по задаче и обосновать выбор, а не перебирать наугад"
+  - "Объяснить, почему условие на правую таблицу в WHERE превращает LEFT JOIN в INNER"
+  - "Написать anti-join через NOT EXISTS и сказать, чем он лучше NOT IN при наличии NULL"
+  - "Оценить, во сколько строк развернётся соединение при связи многие-ко-многим"
+  - "Применить self-join для сравнения строк одной таблицы между собой"
+
+theory:
+  read: theory/sql/sql.joins.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/sql.joins.yaml
+    difficulty: 0.4
+
+review_after_days: [1, 4, 12, 30]
