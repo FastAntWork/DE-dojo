@@ -1,0 +1,34 @@
+# Контекст сборки — корень репозитория, поэтому список важен:
+# без него в контекст уедут .venv и node_modules и сборка станет минутной.
+.git/
+.venv/
+**/.venv/
+node_modules/
+**/node_modules/
+.next/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Данные и артефакты
+data/
+volumes/
+models/
+*.dump
+
+# Локальные секреты — в образ не попадают никогда
+.env
+.env.local
+
+# Контент и тесты в образ API не нужны: контент монтируется томом,
+# тесты гоняются в CI.
+content/
+tests/
+docs/
+infra/
+apps/web/

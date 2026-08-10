@@ -73,6 +73,45 @@ services:
     cpus: 1.0
     networks: [dojo]
 
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: dojo-api
+    restart: unless-stopped
+    environment:
+      # Внутри сети compose хост — имя сервиса, а не 127.0.0.1.
+      DATABASE_URL: >-
+        postgresql://${POSTGRES_USER:-dojo}:${POSTGRES_PASSWORD:-dojo_local_dev}@postgres:5432/${POSTGRES_DB:-dojo}
+      REDIS_URL: redis://redis:6379/0
+      DOJO_ENV: ${DOJO_ENV:-local}
+      DOJO_LOG_LEVEL: ${DOJO_LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # В slim-образе нет curl, и ставить его только ради healthcheck незачем.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          sys.exit(0 if urllib.request.urlopen(
+              "http://localhost:8000/healthz", timeout=3
+          ).status == 200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    mem_limit: ${MEM_API:-768m}
+    cpus: 2.0
+    networks: [dojo]
+
 volumes:
   pgdata:
   redisdata:
