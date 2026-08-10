@@ -46,7 +46,7 @@ make migrate
 | `ai` | ollama | 7 ГБ | зависит от модели |
 | `analytics` | kafka (KRaft), clickhouse, prometheus, grafana | 3.6 ГБ | ~660 МБ |
 | `storage` | minio, mongodb | 1.1 ГБ | ~250 МБ |
-| `sandbox` | сеть без egress для Runner; максимум один стенд лабы | 2 ГБ | — |
+| `sandbox` | сеть без egress для Runner | — | **появится в M2** |
 
 ```bash
 make up                       # core
