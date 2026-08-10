@@ -1,0 +1,28 @@
+id: dwh.concepts
+title: "Хранилища данных: OLTP, OLAP, слои, ETL и ELT"
+track: dwh
+level: 2
+phase: 3
+priority: core
+estimated_hours: 8
+prereq: [pg.basics]
+job_tags: [dwh, etl, elt, data-modeling, olap, architecture]
+
+objectives:
+  - "Объяснить, чем нагрузка OLTP отличается от OLAP, и почему одна база плохо обслуживает обе"
+  - "Назвать слои хранилища — сырой, ядро, витрины — и сказать, что и почему лежит в каждом"
+  - "Отличить подход Инмона от подхода Кимбалла и обосновать выбор под конкретную задачу"
+  - "Объяснить разницу ETL и ELT и назвать, что именно сделало ELT возможным"
+  - "Отличить Data Warehouse от Data Lake и Lakehouse по типу данных, схеме и потребителю"
+  - "Выбрать между пакетной и потоковой обработкой, назвав цену каждого варианта"
+
+theory:
+  read: theory/dwh/dwh.concepts.md
+  rag_scope: [postgres-docs, clickhouse-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dwh.concepts.yaml
+    difficulty: 0.45
+
+review_after_days: [1, 4, 12, 30]

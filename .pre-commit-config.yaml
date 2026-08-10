@@ -53,9 +53,16 @@ repos:
   - repo: local
     hooks:
       # Валидация контента — дешёвая и ловит битые prereq до пуша.
+      #
+      # language: python, а не system с вызовом uv: git-хуки запускаются с
+      # урезанным PATH, в котором ~/.local/bin может отсутствовать, и хук
+      # падает с «Executable uv not found». Здесь pre-commit создаёт своё
+      # окружение сам, и работоспособность перестаёт зависеть от того, из
+      # какого шелла сделан коммит — терминала, IDE или скрипта.
       - id: content-validate
         name: content validate
-        entry: uv run python tools/content_validate.py
-        language: system
+        entry: python tools/content_validate.py
+        language: python
+        additional_dependencies: ["PyYAML>=6.0", "jsonschema>=4.23"]
         pass_filenames: false
         files: ^content/
