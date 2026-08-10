@@ -22,6 +22,9 @@ dev = [
     "pytest-cov>=5.0",
     "hypothesis>=6.112",
     "testcontainers[postgres,redis]>=4.8",
+    # starlette.testclient с некоторых пор требует именно httpx2 и ругается
+    # StarletteDeprecationWarning на обычный httpx.
+    "httpx2>=0.28",
     "types-PyYAML>=6.0",
     "types-psutil>=6.0",
     "types-jsonschema>=4.23",
