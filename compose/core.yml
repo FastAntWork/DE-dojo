@@ -1,0 +1,83 @@
+# core — минимум, при котором Dojo работает: состояние и кеш.
+# У сервисов нет `profiles`, поэтому они поднимаются всегда.
+
+services:
+  postgres:
+    # pgvector нужен с самого начала: эмбеддинги RAG (M4) и вакансий (M7)
+    # живут в той же БД, что и состояние — Postgres здесь единственный
+    # источник истины, см. docs/adr/0002.
+    image: pgvector/pgvector:pg16
+    container_name: dojo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dojo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dojo_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-dojo}
+      # Ускоряет initdb и делает сравнение строк предсказуемым в тестах.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Только loopback: снаружи машины БД недоступна.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command:
+      # Значения под ноутбук с 16 ГБ, не под сервер.
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - max_connections=50
+      # Нужно для заданий типа `sql`: проверяем не только результат,
+      # но и план запроса. Без этих настроек EXPLAIN беднее.
+      - -c
+      - track_io_timing=on
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dojo} -d ${POSTGRES_DB:-dojo}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    mem_limit: ${MEM_POSTGRES:-1g}
+    cpus: 2.0
+    networks: [dojo]
+
+  redis:
+    image: redis:7-alpine
+    container_name: dojo-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      # noeviction, а не allkeys-lru: в Redis лежат не только кеш LLM-ответов,
+      # но и блокировки стендов и очереди задач. Вытеснение ключа-блокировки
+      # означало бы два стенда на одной лабе. Кеш ограничиваем через TTL.
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: ${MEM_REDIS:-384m}
+    cpus: 1.0
+    networks: [dojo]
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  dojo:
+    name: dojo
+    driver: bridge

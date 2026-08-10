@@ -1,0 +1,15 @@
+# Точка входа. Сервисы разложены по файлам, а внутри — по профилям compose.
+#
+#   docker compose up -d                      только core (postgres, redis, api)
+#   docker compose --profile ai up -d         + ollama
+#   docker compose --profile analytics up -d  + kafka, clickhouse, grafana
+#
+# Проще всего через make: `make up`, `make up PROFILE=ai`.
+#
+# Разложено так не из любви к файлам, а потому что весь стек в 16 ГБ хоста
+# одновременно не помещается. Подробности — docs/adr/0004.
+
+name: dojo
+
+include:
+  - compose/core.yml
