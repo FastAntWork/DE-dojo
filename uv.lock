@@ -306,6 +306,7 @@ name = "dojo-cli"
 version = "0.0.0"
 source = { editable = "apps/cli" }
 dependencies = [
+    { name = "dojo" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "psutil" },
@@ -316,6 +317,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dojo", editable = "apps/api" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "psutil", specifier = ">=6.0" },

@@ -10,7 +10,14 @@ dependencies = [
     "psutil>=6.0",      # проба железа для `dojo doctor`
     "PyYAML>=6.0",
     "jsonschema>=4.23",
+    # CLI работает с доменной логикой напрямую, а не через HTTP: до M3 это
+    # модульный монолит, и лишний сетевой хоп между своими же частями только
+    # добавил бы точку отказа в оффлайн-инструменте.
+    "dojo",
 ]
+
+[tool.uv.sources]
+dojo = { workspace = true }
 
 [project.scripts]
 dojo = "dojo_cli.__main__:app"
