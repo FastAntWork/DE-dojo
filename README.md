@@ -29,11 +29,21 @@
 
 ```bash
 git clone <repo> ~/de-dojo && cd ~/de-dojo
-bash tools/install-docker.sh   # только при первой установке
-make doctor                    # проверит железо и подскажет профиль LLM
-make up                        # поднимет core-профиль
-make migrate
+bash tools/install-docker.sh    # только при первой установке, спросит sudo
+bash tools/bootstrap-python.sh  # uv, Python 3.12, git-хуки
+make doctor                     # проверит железо и подскажет профиль LLM
+make start                      # поднимет стек, применит миграции, зальёт контент
 ```
+
+После `make start`:
+
+| | |
+|---|---|
+| Готовность | http://127.0.0.1:8000/readyz |
+| Документация API | http://127.0.0.1:8000/docs |
+
+Документация работает без интернета: ассеты Swagger UI лежат в репозитории,
+а не тянутся с CDN.
 
 ## Профили compose
 

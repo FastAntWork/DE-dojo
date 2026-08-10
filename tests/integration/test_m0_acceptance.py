@@ -226,6 +226,31 @@ class TestReadiness:
         assert liveness.status_code == 200
 
 
+class TestOfflineDocs:
+    """Критерий приёмки №2: приложение работает с выключенным интернетом."""
+
+    def test_docs_page_references_only_local_assets(
+        self, postgres_dsn: str, redis_url: str
+    ) -> None:
+        settings = Settings.model_validate({"DATABASE_URL": postgres_dsn, "REDIS_URL": redis_url})
+
+        with TestClient(create_app(settings)) as client:
+            page = client.get("/docs")
+            script = client.get("/static/swagger-ui-bundle.js")
+            style = client.get("/static/swagger-ui.css")
+
+        assert page.status_code == 200
+        # Ни одной ссылки на внешний хост: штатная страница FastAPI тянет
+        # полтора мегабайта с cdn.jsdelivr.net и без интернета не открывается.
+        assert "cdn.jsdelivr.net" not in page.text
+        assert "unpkg.com" not in page.text
+        assert "/static/swagger-ui-bundle.js" in page.text
+
+        assert script.status_code == 200
+        assert style.status_code == 200
+        assert len(script.content) > 500_000
+
+
 class TestGraphIntegrity:
     async def test_every_edge_points_at_existing_skill(self, postgres_dsn: str) -> None:
         await migrate(postgres_dsn)

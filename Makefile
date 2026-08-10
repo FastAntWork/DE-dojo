@@ -71,8 +71,29 @@ check-ram:
 
 .PHONY: up
 up: env check-ram ## Поднять стек (core, либо PROFILE=...)
-	@$(COMPOSE) $(PROFILE_ARGS) up -d --quiet-pull
+	@# --build обязателен: без него правка кода не попадает в контейнер, и
+	@# человек полчаса выясняет, почему его изменение «не работает». При
+	@# нетронутом коде сборка укладывается в пару секунд за счёт кеша слоёв.
+	@$(COMPOSE) $(PROFILE_ARGS) up -d --build --quiet-pull
 	@$(MAKE) --no-print-directory ps
+
+.PHONY: start
+start: up ## Поднять стек, применить миграции и залить контент — всё одной командой
+	@printf 'жду готовности API'
+	@for i in $$(seq 1 60); do \
+		if curl -fsS http://127.0.0.1:$${API_HOST_PORT:-8000}/readyz >/dev/null 2>&1; then \
+			echo " — готов"; break; \
+		fi; \
+		printf '.'; sleep 2; \
+		if [ $$i -eq 60 ]; then \
+			echo ""; echo "API не поднялся за две минуты. Смотри: make logs S=api"; exit 1; \
+		fi; \
+	done
+	@$(MAKE) --no-print-directory migrate
+	@$(MAKE) --no-print-directory sync
+	@echo ""
+	@echo "  Готово. API: http://127.0.0.1:$${API_HOST_PORT:-8000}"
+	@echo "  Документация: http://127.0.0.1:$${API_HOST_PORT:-8000}/docs"
 
 .PHONY: down
 down: ## Остановить и удалить контейнеры (тома остаются)

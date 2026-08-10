@@ -8,8 +8,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Final
 
 from fastapi import FastAPI
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from dojo.core.cache import Cache
 from dojo.core.config import Settings, get_settings
@@ -18,6 +23,8 @@ from dojo.core.logging import configure_logging, get_logger
 from dojo.web.routers import health
 
 logger = get_logger(__name__)
+
+STATIC_DIR: Final = Path(__file__).parent / "static"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -54,13 +61,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="DE Dojo API",
         version="0.0.0",
         lifespan=lifespan,
-        # ReDoc выключен: Swagger UI хватает, две страницы документации
-        # незачем. Учти, что и Swagger UI грузит свой JS с CDN, поэтому
-        # обещание «работает офлайн» он пока не выполняет — ассеты надо
-        # положить локально до приёмки M0 по критерию офлайна (см. README).
+        # ReDoc выключен: Swagger UI хватает, две страницы документации незачем.
         redoc_url=None,
+        # Штатная страница /docs подтягивает свой JS и CSS с CDN, а это ломает
+        # обещание работы без интернета. Отключаем её и собираем свою из
+        # ассетов, лежащих в репозитории.
+        docs_url=None,
     )
     app.state.settings = settings
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.get("/docs", include_in_schema=False)
+    async def swagger_ui() -> HTMLResponse:
+        return get_swagger_ui_html(
+            openapi_url=app.openapi_url or "/openapi.json",
+            title=f"{app.title} — документация",
+            swagger_js_url="/static/swagger-ui-bundle.js",
+            swagger_css_url="/static/swagger-ui.css",
+        )
+
     app.include_router(health.router)
     return app
 

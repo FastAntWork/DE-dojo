@@ -12,6 +12,10 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=512]
+        # Ассеты Swagger UI лежат в репозитории намеренно: без них страница
+        # /docs тянет полтора мегабайта с CDN и приложение перестаёт работать
+        # без интернета. Полтора мегабайта в git — приемлемая цена за это.
+        exclude: ^apps/api/src/dojo/web/static/
       - id: check-yaml
         # многодокументные compose-файлы и k8s-манифесты
         args: [--allow-multiple-documents]
