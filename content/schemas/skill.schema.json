@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://de-dojo.local/schemas/skill.schema.json",
+  "title": "Узел графа навыков",
+  "description": "Файл content/tracks/<track>/<id>.yaml. Источник истины по учебному материалу; таблицы skills и tasks — его проекция.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "track", "level", "estimated_hours", "objectives", "tasks"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
+      "description": "Точечный идентификатор: sql.window-functions, kafka.consumer-groups."
+    },
+    "title": { "type": "string", "minLength": 3 },
+    "track": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "1 — вводный, 5 — то, что спрашивают на senior-собесе."
+    },
+    "estimated_hours": { "type": "number", "exclusiveMinimum": 0, "maximum": 40 },
+    "prereq": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "soft_prereq": {
+      "type": "array",
+      "description": "Желательные, но не блокирующие выдачу узла планировщиком.",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "job_tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9+#.-]+$" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 10 },
+      "description": "Проверяемые формулировки: «объяснить X», «найти причину Y по метрикам». Не «познакомиться с»."
+    },
+    "theory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read"],
+      "properties": {
+        "read": {
+          "type": "string",
+          "pattern": "^theory/.+\\.md$",
+          "description": "Путь относительно content/. 800–1500 слов, пишется человеком."
+        },
+        "rag_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "review_after_days": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "minItems": 1,
+      "default": [1, 4, 12, 30]
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task" }
+    }
+  },
+
+  "$defs": {
+    "difficulty": { "type": "number", "minimum": 0, "maximum": 1 },
+    "hints": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "penalty"],
+        "properties": {
+          "text": { "type": "string", "minLength": 5 },
+          "penalty": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Штраф к result. Подсказка обязана стоить баллов, иначе она бесплатна."
+          }
+        }
+      }
+    },
+
+    "task": {
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        { "$ref": "#/$defs/taskFlashcard" },
+        { "$ref": "#/$defs/taskQuiz" },
+        { "$ref": "#/$defs/taskSql" },
+        { "$ref": "#/$defs/taskKata" },
+        { "$ref": "#/$defs/taskLab" },
+        { "$ref": "#/$defs/taskReview" },
+        { "$ref": "#/$defs/taskDesign" },
+        { "$ref": "#/$defs/taskInterview" },
+        { "$ref": "#/$defs/taskCapstone" }
+      ]
+    },
+
+    "taskFlashcard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "deck", "count"],
+      "properties": {
+        "type": { "const": "flashcard" },
+        "deck": { "type": "string", "pattern": "^decks/.+\\.yaml$" },
+        "count": { "type": "integer", "minimum": 1 },
+        "difficulty": { "$ref": "#/$defs/difficulty" }
+      }
+    },
+
+    "taskQuiz": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "file"],
+      "properties": {
+        "type": { "const": "quiz" },
+        "file": { "type": "string", "pattern": "^quizzes/.+\\.yaml$" },
+        "difficulty": { "$ref": "#/$defs/difficulty" },
+        "hints": { "$ref": "#/$defs/hints" }
+      }
+    },
+
+    "taskSql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "file", "dataset"],
+      "properties": {
+        "type": { "const": "sql" },
+        "file": { "type": "string", "pattern": "^sql/.+\\.yaml$" },
+        "dataset": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+        "engine": { "enum": ["postgres", "clickhouse"], "default": "postgres" },
+        "max_seq_scans": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Верхняя граница Seq Scan в плане. Задаётся там, где проверяется не только результат, но и то, как он получен."
+        },
+        "difficulty": { "$ref": "#/$defs/difficulty" },
+        "hints": { "$ref": "#/$defs/hints" }
+      }
+    },
+
+    "taskKata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "const": "kata" },
+        "path": { "type": "string", "pattern": "^katas/[a-z0-9-]+$" },
+        "timeout_sec": { "type": "integer", "minimum": 10, "default": 300 },
+        "difficulty": { "$ref": "#/$defs/difficulty" },
+        "hints": { "$ref": "#/$defs/hints" }
+      }
+    },
+
+    "taskLab": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "const": "lab" },
+        "path": { "type": "string", "pattern": "^labs/[a-z0-9-]+$" },
+        "variants": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Chaos-режим: seed.sh --variant N ломает стенд по-разному."
+        },
+        "timeout_min": { "type": "integer", "minimum": 5, "default": 45 },
+        "difficulty": { "$ref": "#/$defs/difficulty" },
+        "hints": { "$ref": "#/$defs/hints" }
+      }
+    },
+
+    "taskReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "prompt", "rubric"],
+      "properties": {
+        "type": { "const": "review" },
+        "prompt": { "type": "string", "minLength": 20 },
+        "rubric": { "type": "string", "pattern": "^rubrics/.+\\.yaml$" },
+        "difficulty": { "$ref": "#/$defs/difficulty" }
+      }
+    },
+
+    "taskDesign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "prompt", "rubric"],
+      "properties": {
+        "type": { "const": "design" },
+        "prompt": { "type": "string", "minLength": 20 },
+        "rubric": { "type": "string", "pattern": "^rubrics/.+\\.yaml$" },
+        "difficulty": { "$ref": "#/$defs/difficulty" }
+      }
+    },
+
+    "taskInterview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "rubric"],
+      "properties": {
+        "type": { "const": "interview" },
+        "rubric": { "type": "string", "pattern": "^rubrics/.+\\.yaml$" },
+        "duration_min": { "type": "integer", "minimum": 10, "default": 40 },
+        "difficulty": { "$ref": "#/$defs/difficulty" }
+      }
+    },
+
+    "taskCapstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "repo_task", "tests"],
+      "properties": {
+        "type": { "const": "capstone" },
+        "repo_task": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Что именно доделать в самом Dojo."
+        },
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Пути к тестам от корня репозитория. Должны падать до решения."
+        },
+        "difficulty": { "$ref": "#/$defs/difficulty" }
+      }
+    }
+  }
+}

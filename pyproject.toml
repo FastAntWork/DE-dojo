@@ -24,6 +24,7 @@ dev = [
     "testcontainers[postgres,redis]>=4.8",
     "types-PyYAML>=6.0",
     "types-psutil>=6.0",
+    "types-jsonschema>=4.23",
     "pre-commit>=3.8",
 ]
 
@@ -86,9 +87,7 @@ disallow_any_unimported = true
 show_error_codes = true
 pretty = true
 mypy_path = ["apps/api/src", "apps/cli/src", "apps/runner/src"]
-# tools/ добавится сюда в коммите, где появится content_validate.py:
-# mypy падает с ошибкой на каталоге без единого модуля.
-files = ["apps", "tests"]
+files = ["apps", "tests", "tools"]
 exclude = "^content/katas/"
 
 [[tool.mypy.overrides]]
@@ -101,6 +100,9 @@ ignore_errors = true
 # ─────────────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Корень репозитория в sys.path: тесты импортируют tools.content_validate,
+# который живёт вне пакетов workspace.
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-q --strict-markers --strict-config"
 markers = [
