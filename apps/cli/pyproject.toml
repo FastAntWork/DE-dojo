@@ -1,0 +1,23 @@
+[project]
+name = "dojo-cli"
+version = "0.0.0"
+description = "dojo — CLI: next, submit, doctor, backup, content"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.8",
+    "httpx>=0.27",
+    "psutil>=6.0",      # проба железа для `dojo doctor`
+    "PyYAML>=6.0",
+    "jsonschema>=4.23",
+]
+
+[project.scripts]
+dojo = "dojo_cli.__main__:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dojo_cli"]

@@ -1,0 +1,56 @@
+# Хуки должны быть быстрыми — всё тяжёлое живёт в CI.
+# Установка:  uv run pre-commit install --install-hooks -t pre-commit -t commit-msg
+default_install_hook_types: [pre-commit, commit-msg]
+fail_fast: false
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-yaml
+        # многодокументные compose-файлы и k8s-манифесты
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-executables-have-shebangs
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # shellcheck-py, а не koalaman/shellcheck-precommit: последний запускает
+  # линтер в контейнере, из-за чего git commit начинает требовать работающий
+  # docker. Хуки обязаны работать всухую.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        # seed.sh лаб намеренно содержит «неправильный» код — это часть задания
+        exclude: ^content/labs/.*/seed\.sh$
+
+  # Conventional Commits. Взят commitizen, а не commitlint: тот тянет Node,
+  # который до M1 (web UI) в проекте не нужен вообще.
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.31.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      # Валидация контента — дешёвая и ловит битые prereq до пуша.
+      - id: content-validate
+        name: content validate
+        entry: uv run python tools/content_validate.py
+        language: system
+        pass_filenames: false
+        files: ^content/
