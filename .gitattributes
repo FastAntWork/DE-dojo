@@ -1,0 +1,13 @@
+# Репозиторий живёт в WSL, но редактироваться может из Windows.
+# Без этого CRLF просочится в shell-скрипты и они перестанут запускаться.
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.bash text eol=lf
+Makefile text eol=lf
+
+*.png binary
+*.jpg binary
+*.gz  binary
+*.zip binary
+*.vhdx binary
