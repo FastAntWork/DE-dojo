@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Новый пуш в ту же ветку отменяет предыдущий прогон: гонять полный набор
+# на устаревшем коммите бессмысленно, а очередь на бесплатных раннерах общая.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.12.3"
+
+jobs:
+  # ── Быстрая обратная связь: секунды, без единого контейнера ────────────────
+  quality:
+    name: Линт, типы, контент, быстрые тесты
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Установить окружение
+        run: uv sync --all-packages --frozen
+
+      - name: ruff
+        run: uv run ruff check --output-format=github .
+
+      - name: Форматирование
+        run: uv run ruff format --check .
+
+      - name: mypy strict
+        run: uv run mypy
+
+      # Битый prereq, цикл в графе или лаба без check.py должны ронять сборку
+      # здесь — за секунды и с указанием файла.
+      - name: Валидация контента
+        run: uv run python tools/content_validate.py
+
+      - name: Тесты без IO
+        run: uv run pytest tests/unit -q
+
+  # ── Настоящая БД в контейнере ──────────────────────────────────────────────
+  integration:
+    name: Интеграционные тесты
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Установить окружение
+        run: uv sync --all-packages --frozen
+
+      # testcontainers поднимает контейнеры сам, docker на раннере уже есть.
+      - name: Приёмка M0
+        run: uv run pytest tests/integration -q
+
+  # ── То же, что делает человек на чистой машине ─────────────────────────────
+  compose-smoke:
+    name: make up на чистой машине
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Установить окружение
+        run: uv sync --all-packages --frozen
+
+      # Ровно та последовательность, что описана в README как быстрый старт.
+      # Если ломается она, критерий приёмки M0 не выполнен, какими бы
+      # зелёными ни были юнит-тесты.
+      - name: make up
+        run: make up
+
+      - name: Дождаться готовности API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/readyz > /tmp/readyz.json; then
+              cat /tmp/readyz.json
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "API не поднялся за 5 минут"
+          docker compose ps
+          docker compose logs --tail=100
+          exit 1
+
+      - name: make migrate
+        run: make migrate
+
+      - name: make sync
+        run: make sync
+
+      - name: Повторный sync ничего не меняет
+        run: |
+          out=$(make sync)
+          echo "$out"
+          echo "$out" | grep -q "Изменений нет" || {
+            echo "sync не идемпотентен"; exit 1;
+          }
+
+      - name: Логи при падении
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Погасить стек
+        if: always()
+        run: make down
