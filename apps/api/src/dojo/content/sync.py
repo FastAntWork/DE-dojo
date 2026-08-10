@@ -75,12 +75,15 @@ class SyncReport:
 UPSERT_SKILL = """
 INSERT INTO skills (
     id, title, track, level, estimated_hours, objectives, job_tags,
-    theory_path, rag_scope, review_after_days, source_path, content_hash
-) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12)
+    theory_path, rag_scope, review_after_days, source_path, content_hash,
+    phase, priority
+) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (id) DO UPDATE SET
     title             = EXCLUDED.title,
     track             = EXCLUDED.track,
     level             = EXCLUDED.level,
+    phase             = EXCLUDED.phase,
+    priority          = EXCLUDED.priority,
     estimated_hours   = EXCLUDED.estimated_hours,
     objectives        = EXCLUDED.objectives,
     job_tags          = EXCLUDED.job_tags,
@@ -158,6 +161,8 @@ async def sync_skills(
             skill.review_after_days,
             skill.source_path,
             skill.content_hash,
+            skill.phase,
+            skill.priority,
         )
 
     # Узлы, пропавшие из content/. DELETE здесь был бы потерей истории.

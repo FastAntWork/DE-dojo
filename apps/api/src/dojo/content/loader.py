@@ -57,6 +57,11 @@ class SkillSpec:
     title: str
     track: str
     level: int
+    # Крупный порядок обучения (docs/curriculum.md); внутри фазы порядок
+    # определяют prereq.
+    phase: int
+    # core — ядро профессии по роадмапу, secondary — отложенное.
+    priority: str
     estimated_hours: float
     objectives: list[str]
     job_tags: list[str]
@@ -155,6 +160,8 @@ def parse_skill(path: Path, repo_root: Path) -> SkillSpec:
         title=str(data["title"]),
         track=str(data["track"]),
         level=int(data["level"]),
+        phase=int(data["phase"]),
+        priority=str(data.get("priority", "core")),
         estimated_hours=float(data["estimated_hours"]),
         objectives=[str(item) for item in data["objectives"]],
         job_tags=[str(item) for item in data.get("job_tags", [])],

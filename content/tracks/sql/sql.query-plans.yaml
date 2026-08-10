@@ -2,6 +2,7 @@ id: sql.query-plans
 title: "SQL: планы запросов и как их читать"
 track: sql
 level: 4
+phase: 2
 estimated_hours: 8
 prereq: [sql.window-functions, pg.basics]
 job_tags: [sql, postgresql, performance, etl]

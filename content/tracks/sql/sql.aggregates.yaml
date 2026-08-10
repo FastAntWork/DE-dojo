@@ -2,6 +2,7 @@ id: sql.aggregates
 title: "SQL: агрегация и группировка"
 track: sql
 level: 2
+phase: 1
 estimated_hours: 5
 prereq: [sql.core.select]
 job_tags: [sql, postgresql, analytics]

@@ -2,6 +2,7 @@ id: pg.basics
 title: "PostgreSQL: устройство и повседневная работа"
 track: postgres
 level: 2
+phase: 2
 estimated_hours: 4
 prereq: [sql.core.select]
 job_tags: [postgresql, sql, dba]

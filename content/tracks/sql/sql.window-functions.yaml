@@ -2,6 +2,7 @@ id: sql.window-functions
 title: "SQL: оконные функции"
 track: sql
 level: 3
+phase: 1
 estimated_hours: 8
 prereq: [sql.subqueries-cte]
 job_tags: [sql, postgresql, analytics, etl]

@@ -52,6 +52,7 @@ def skill_dict(skill_id: str, track: str, prereq: list[str] | None = None) -> di
         "title": f"Узел {skill_id}",
         "track": track,
         "level": 1,
+        "phase": 1,
         "estimated_hours": 4,
         "prereq": prereq or [],
         "objectives": ["Объяснить, как это работает, и когда применять"],

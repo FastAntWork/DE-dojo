@@ -2,6 +2,7 @@ id: rdbms.theory.acid
 title: "Транзакции: ACID и уровни изоляции"
 track: rdbms
 level: 3
+phase: 2
 estimated_hours: 6
 prereq: [pg.basics]
 job_tags: [postgresql, rdbms, architecture]

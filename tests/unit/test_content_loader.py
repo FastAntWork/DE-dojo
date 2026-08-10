@@ -35,6 +35,7 @@ def base_skill(skill_id: str = "sql.joins") -> dict[str, Any]:
         "title": "Соединения",
         "track": "sql",
         "level": 2,
+        "phase": 1,
         "estimated_hours": 6,
         "prereq": ["sql.core.select"],
         "soft_prereq": ["pg.basics"],

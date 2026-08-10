@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from dojo.content.loader import load_skills
 from dojo.content.sync import sync_skills
 from dojo.core.config import Settings
-from dojo.core.migrate import find_migrations_dir, migrate
+from dojo.core.migrate import find_migrations_dir, load_migrations, migrate
 from dojo.web.app import create_app
 
 pytestmark = pytest.mark.integration
@@ -40,9 +40,14 @@ async def count(conn: asyncpg.Connection[asyncpg.Record], table: str) -> int:
 
 class TestMigrations:
     async def test_apply_to_empty_database(self, postgres_dsn: str) -> None:
+        # Ожидаемое берём с диска, а не списком литералов: иначе тест придётся
+        # править при каждой новой миграции, и однажды его поправят не глядя.
+        expected = [m.version for m in load_migrations(find_migrations_dir())]
+
         applied = await migrate(postgres_dsn)
 
-        assert [m.version for m in applied] == ["001", "002"]
+        assert [m.version for m in applied] == expected
+        assert len(applied) >= 3
 
     async def test_second_run_is_noop(self, postgres_dsn: str) -> None:
         await migrate(postgres_dsn)

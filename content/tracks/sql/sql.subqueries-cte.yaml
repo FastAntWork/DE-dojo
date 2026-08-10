@@ -2,6 +2,7 @@ id: sql.subqueries-cte
 title: "SQL: подзапросы и CTE"
 track: sql
 level: 3
+phase: 1
 estimated_hours: 5
 prereq: [sql.joins, sql.aggregates]
 job_tags: [sql, postgresql]

@@ -2,6 +2,7 @@ id: testing.unit
 title: "Модульные тесты: pytest, фикстуры, моки"
 track: testing
 level: 2
+phase: 5
 estimated_hours: 8
 prereq: [python.core]
 job_tags: [python, pytest, testing, ci]

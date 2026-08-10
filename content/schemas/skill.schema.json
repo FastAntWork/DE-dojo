@@ -5,8 +5,19 @@
   "description": "Файл content/tracks/<track>/<id>.yaml. Источник истины по учебному материалу; таблицы skills и tasks — его проекция.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "title", "track", "level", "estimated_hours", "objectives", "tasks"],
+  "required": ["id", "title", "track", "level", "phase", "estimated_hours", "objectives", "tasks"],
   "properties": {
+    "phase": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6,
+      "description": "Учебная фаза по docs/curriculum.md. Задаёт крупный порядок; внутри фазы порядок определяют prereq."
+    },
+    "priority": {
+      "enum": ["core", "secondary"],
+      "default": "core",
+      "description": "core — ядро профессии по роадмапу. secondary — отложенное: остаётся в графе, но берётся после закрытия ядра."
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
