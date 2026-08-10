@@ -3,6 +3,11 @@
 default_install_hook_types: [pre-commit, commit-msg]
 fail_fast: false
 
+# Вендоренные ассеты Swagger UI не трогает ни один хук: они должны оставаться
+# байт-в-байт такими же, как у первоисточника, иначе их невозможно сверить с
+# апстримом. end-of-file-fixer уже успел дописать им перевод строки.
+exclude: ^apps/api/src/dojo/web/static/
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -12,10 +17,6 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=512]
-        # Ассеты Swagger UI лежат в репозитории намеренно: без них страница
-        # /docs тянет полтора мегабайта с CDN и приложение перестаёт работать
-        # без интернета. Полтора мегабайта в git — приемлемая цена за это.
-        exclude: ^apps/api/src/dojo/web/static/
       - id: check-yaml
         # многодокументные compose-файлы и k8s-манифесты
         args: [--allow-multiple-documents]
