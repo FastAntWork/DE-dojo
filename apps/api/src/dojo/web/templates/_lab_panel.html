@@ -1,0 +1,180 @@
+{# Интерактивная часть лабы целиком: стенд, подсказки, проверка, результат.
+   Подменяется одним куском — состояние здесь общее, и собирать его из
+   независимо обновляемых фрагментов означало бы рано или поздно показать
+   кнопку проверки для стенда, которого уже нет. #}
+
+<h2 id="lab-stand" style="scroll-margin-top:5rem">Стенд</h2>
+
+{% if stand_error %}
+<div class="verdict">
+  <div class="verdict-label bad">Стенд недоступен</div>
+  <div class="verdict-text">{{ stand_error }}</div>
+</div>
+{% endif %}
+
+{% if stand %}
+  <div class="score">
+    <div class="score-value ok">#{{ stand.variant }}</div>
+    <div>
+      <div style="font-weight:600">Стенд поднят</div>
+      <div style="color:var(--text-muted);font-size:0.92rem">
+        Вариант {{ stand.variant }} из {{ lab.variants }}. Причина поломки в каждом
+        варианте своя.
+      </div>
+    </div>
+  </div>
+
+  <p style="color:var(--text-muted);font-size:0.93rem;margin-bottom:0.35rem">
+    Строка подключения — вставь в psql, DBeaver или свой скрипт:
+  </p>
+  <div class="prose">
+    <pre><code>{{ stand.dsn }}</code></pre>
+  </div>
+  <p style="color:var(--text-muted);font-size:0.9rem">
+    Права на эту базу полные: она пересоздаётся с нуля при каждом запуске
+    варианта, испортить что-то ценное невозможно.
+  </p>
+{% else %}
+  <p style="color:var(--text-muted)">
+    Стенд ещё не поднят. Запуск создаёт отдельную базу и наполняет её сломанным
+    состоянием — это занимает несколько секунд.
+  </p>
+{% endif %}
+
+<form hx-post="/skills/{{ skill.id }}/lab/start"
+      hx-target="#lab-panel"
+      hx-swap="innerHTML"
+      hx-disabled-elt="find button">
+  <div class="actions">
+    <label style="color:var(--text-muted);font-size:0.93rem">
+      Вариант:
+      <select name="variant" class="btn secondary" style="padding:0.35rem 0.6rem">
+        <option value="">случайный</option>
+        {% for n in range(1, lab.variants + 1) %}
+        <option value="{{ n }}" {% if stand and stand.variant == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn {{ 'secondary' if stand else '' }}" type="submit">
+      {% if stand %}Поднять заново{% else %}Запустить лабу{% endif %}
+    </button>
+    <span class="htmx-indicator" style="color:var(--text-muted)">
+      наполняю стенд, это занимает несколько секунд…
+    </span>
+  </div>
+  {% if stand %}
+  <p style="color:var(--text-muted);font-size:0.88rem;margin-top:0.4rem">
+    Перезапуск стирает всё, что ты успел сделать в базе.
+  </p>
+  {% endif %}
+</form>
+
+{% if stand %}
+<h2>Проверка</h2>
+<form hx-post="/skills/{{ skill.id }}/lab/check"
+      hx-target="#lab-panel"
+      hx-swap="innerHTML"
+      hx-disabled-elt="find button">
+  <div class="actions">
+    <button class="btn" type="submit">Проверить</button>
+    <span class="htmx-indicator" style="color:var(--text-muted)">проверяю стенд…</span>
+  </div>
+</form>
+{% endif %}
+
+{% if result %}
+<h2 id="lab-verdict" style="scroll-margin-top:5rem">Результат</h2>
+
+{% if result.error %}
+  <div class="verdict">
+    <div class="verdict-label bad">Проверка не состоялась</div>
+    <div class="verdict-text">{{ result.error }}</div>
+  </div>
+{% else %}
+  <div class="score">
+    <div class="score-value {{ 'ok' if result.passed else 'bad' }}">
+      {{ result.checks | selectattr('ok') | list | length }}/{{ result.checks | length }}
+    </div>
+    <div>
+      <div style="font-weight:600">
+        {% if result.passed %}Лаба сдана{% else %}Ещё не сходится{% endif %}
+      </div>
+      <div style="color:var(--text-muted);font-size:0.92rem">
+        {% if result.passed %}
+          Все условия из брифа выполнены.
+        {% else %}
+          Ниже — что именно не выполнено. Разбор откроется после сдачи.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <table>
+      <thead><tr><th>Условие</th><th>Результат</th><th>Подробности</th></tr></thead>
+      <tbody>
+        {% for check in result.checks %}
+        <tr>
+          <td><code>{{ check.name }}</code></td>
+          <td>
+            {% if check.ok %}
+              <span class="tag ok">выполнено</span>
+            {% else %}
+              <span class="tag bad">нет</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);font-size:0.9rem">{{ check.detail }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endif %}
+
+{% if stand %}
+<h2>Подсказки</h2>
+
+{% if hints %}
+<div class="prose">
+  {% for hint in hints %}
+  <blockquote>
+    <strong>Уровень {{ hint.level }}</strong> · штраф {{ (hint.penalty * 100) | round | int }}%<br>
+    {{ hint.text }}
+  </blockquote>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if next_hint %}
+<form hx-post="/skills/{{ skill.id }}/lab/hint"
+      hx-target="#lab-panel"
+      hx-swap="innerHTML">
+  <div class="actions">
+    <button class="btn secondary" type="submit">
+      Открыть подсказку {{ next_hint.level }} (−{{ (next_hint.penalty * 100) | round | int }}% к баллу)
+    </button>
+  </div>
+</form>
+<p style="color:var(--text-muted);font-size:0.88rem">
+  Штраф считается по самой дорогой открытой подсказке, а не суммой — иначе
+  дойти до третьего уровня честно было бы дороже, чем сразу взять последний.
+</p>
+{% else %}
+<p style="color:var(--text-muted);font-size:0.9rem">Все подсказки открыты.</p>
+{% endif %}
+{% endif %}
+
+{# Разбора нет в ответе, пока лаба не сдана: его подставляет роутер. #}
+{% if solution_html %}
+<h2>Разбор</h2>
+<p style="color:var(--text-muted);font-size:0.93rem">
+  Открылся после сдачи. Стоит прочитать, даже если решил быстро: в разборе есть
+  то, чего ты мог не заметить.
+</p>
+<div class="prose">{{ solution_html | safe }}</div>
+{% endif %}
+
+<script>
+  document.getElementById("lab-verdict")?.scrollIntoView({ behavior: "smooth", block: "start" });
+</script>

@@ -19,6 +19,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Annotated, Final
+from urllib.parse import urlsplit, urlunsplit
 
 import psutil
 import typer
@@ -120,12 +121,42 @@ def warn_if_low_memory(profile: str) -> None:
     )
 
 
-# Порты, которые стек публикует на хосте, и переменные, которыми они задаются.
-HOST_PORTS: Final[dict[str, tuple[int, str]]] = {
-    "POSTGRES_HOST_PORT": (5432, "postgres"),
-    "REDIS_HOST_PORT": (6379, "redis"),
-    "API_HOST_PORT": (8000, "api"),
+# Порты, которые стек публикует на хосте: переменная порта → (порт по
+# умолчанию, имя сервиса, переменная со строкой подключения).
+#
+# Третий элемент существует потому, что порт задан в двух местах: compose
+# публикует его по HOST_PORT, а приложение ходит по URL. Сдвинуть только
+# первое — значит увести приложение к ЧУЖОМУ серверу: тому самому, из-за
+# которого порт и оказался занят. Данные при этом уедут не туда, и заметить
+# это можно очень нескоро.
+HOST_PORTS: Final[dict[str, tuple[int, str, str | None]]] = {
+    "POSTGRES_HOST_PORT": (5432, "postgres", "DATABASE_URL"),
+    "REDIS_HOST_PORT": (6379, "redis", "REDIS_URL"),
+    # У API строки подключения нет: адрес приложения сообщается человеку.
+    "API_HOST_PORT": (8000, "api", None),
 }
+
+
+def retarget_url(url: str, port: int) -> str:
+    """Подменяет порт в строке подключения, не трогая остального."""
+    parts = urlsplit(url)
+    if not parts.hostname:
+        return url
+    userinfo = ""
+    if parts.username:
+        userinfo = parts.username
+        if parts.password:
+            userinfo += f":{parts.password}"
+        userinfo += "@"
+    return urlunsplit(
+        (
+            parts.scheme,
+            f"{userinfo}{parts.hostname}:{port}",
+            parts.path,
+            parts.query,
+            parts.fragment,
+        )
+    )
 
 
 def is_port_free(port: int) -> bool:
@@ -179,7 +210,7 @@ def preflight_ports(root: Path) -> int:
     env = read_env(root)
     api_port = int(env.get("API_HOST_PORT", HOST_PORTS["API_HOST_PORT"][0]))
 
-    for key, (default, service) in HOST_PORTS.items():
+    for key, (default, service, url_key) in HOST_PORTS.items():
         current = int(env.get(key, default))
         if is_port_free(current):
             if key == "API_HOST_PORT":
@@ -198,6 +229,11 @@ def preflight_ports(root: Path) -> int:
             "Чаще всего это второй докер: проверь, не поднят ли стек в WSL."
         )
         set_env_value(root, key, str(chosen))
+        # Вместе с портом переезжает и строка подключения. Без этого
+        # приложение осталось бы стучаться на прежний порт — то есть к тому
+        # самому чужому серверу, который и занял его.
+        if url_key and (url := env.get(url_key)):
+            set_env_value(root, url_key, retarget_url(url, chosen))
         if key == "API_HOST_PORT":
             api_port = chosen
 

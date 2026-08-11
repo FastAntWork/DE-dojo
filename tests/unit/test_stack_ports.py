@@ -14,7 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from dojo_cli.stack import is_port_free, preflight_ports, read_env, set_env_value
+from dojo_cli.stack import (
+    is_port_free,
+    preflight_ports,
+    read_env,
+    retarget_url,
+    set_env_value,
+)
 
 
 def free_port() -> int:
@@ -38,9 +44,12 @@ def project(tmp_path: Path) -> Path:
         "REDIS_HOST_PORT": free_port(),
         "API_HOST_PORT": free_port(),
     }
-    (tmp_path / ".env").write_text(
-        "".join(f"{key}={value}\n" for key, value in ports.items()), encoding="utf-8"
-    )
+    lines = [f"{key}={value}" for key, value in ports.items()]
+    lines += [
+        f"DATABASE_URL=postgresql://dojo:secret@127.0.0.1:{ports['POSTGRES_HOST_PORT']}/dojo",
+        f"REDIS_URL=redis://127.0.0.1:{ports['REDIS_HOST_PORT']}/0",
+    ]
+    (tmp_path / ".env").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return tmp_path
 
 
@@ -119,3 +128,44 @@ class TestPreflight:
         preflight_ports(project)
 
         assert read_env(project)["REDIS_HOST_PORT"] != str(busy_port)
+
+
+class TestConnectionStringFollowsPort:
+    """Регрессия, найденная на живом стенде и стоившая бы дорого.
+
+    Порт хранилища задан в двух местах: compose публикует его по HOST_PORT, а
+    приложение ходит по URL. Первая версия сдвигала только порт публикации — и
+    приложение продолжало стучаться на прежний адрес, где сидел ЧУЖОЙ сервер:
+    ровно тот, из-за которого порт и оказался занят. Стек при этом
+    поднимался, приложение подключалось, всё выглядело работающим, а данные
+    уезжали в чужую базу.
+    """
+
+    @pytest.mark.parametrize(
+        ("port_key", "url_key"),
+        [("POSTGRES_HOST_PORT", "DATABASE_URL"), ("REDIS_HOST_PORT", "REDIS_URL")],
+    )
+    def test_url_moves_with_port(
+        self, project: Path, busy_port: int, port_key: str, url_key: str
+    ) -> None:
+        set_env_value(project, port_key, str(busy_port))
+
+        preflight_ports(project)
+
+        env = read_env(project)
+        assert f":{env[port_key]}" in env[url_key], (
+            f"{url_key} остался на старом порту: {env[url_key]}"
+        )
+        assert f":{busy_port}/" not in env[url_key]
+
+    def test_untouched_url_keeps_credentials_and_database(self, project: Path) -> None:
+        before = read_env(project)["DATABASE_URL"]
+
+        preflight_ports(project)
+
+        assert read_env(project)["DATABASE_URL"] == before
+
+    def test_retarget_keeps_everything_but_port(self) -> None:
+        moved = retarget_url("postgresql://dojo:p%40ss@127.0.0.1:5432/dojo?sslmode=disable", 5433)
+
+        assert moved == "postgresql://dojo:p%40ss@127.0.0.1:5433/dojo?sslmode=disable"

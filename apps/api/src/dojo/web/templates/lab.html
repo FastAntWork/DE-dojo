@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Лаба: {{ lab.name }} — DE Dojo{% endblock %}
+
+{# Страница лабы. В отличие от каты и SQL-практики здесь есть состояние —
+   поднятый стенд, — поэтому всё интерактивное вынесено в _lab_panel.html и
+   подменяется целиком: так панель не может рассинхронизироваться сама с собой,
+   показывая, скажем, кнопку подсказки для уже снесённого стенда. #}
+
+{% block main %}
+<main class="reading">
+  <p style="margin:0 0 0.75rem"><a href="/skills/{{ skill.id }}">← к узлу</a></p>
+
+  <div class="prose">{{ brief_html | safe }}</div>
+
+  <div id="lab-panel">
+    {% include "_lab_panel.html" %}
+  </div>
+
+  <div class="actions">
+    <a class="btn secondary" href="/skills/{{ skill.id }}">К теории узла</a>
+    <a class="btn secondary" href="/">К графу</a>
+  </div>
+</main>
+{% endblock %}

@@ -17,6 +17,7 @@ from dojo.content.loader import SkillSpec, TaskSpec, load_skills
 from dojo.content.quiz import Quiz, QuizError, parse_quiz
 from dojo.core.logging import get_logger
 from dojo.runner.kata import Kata, KataError, load_kata
+from dojo.runner.lab import Lab, LabError, load_lab
 from dojo.runner.sql_check import SqlTaskError, SqlTaskFile, parse_task_file
 
 logger = get_logger(__name__)
@@ -36,6 +37,7 @@ class ContentIndex:
     quizzes: dict[str, Quiz] = field(default_factory=dict)
     sql_tasks: dict[str, SqlTaskFile] = field(default_factory=dict)
     katas: dict[str, Kata] = field(default_factory=dict)
+    labs: dict[str, Lab] = field(default_factory=dict)
 
     def reload(self) -> None:
         skills = load_skills(self.content_root, self.repo_root)
@@ -44,6 +46,7 @@ class ContentIndex:
         quizzes: dict[str, Quiz] = {}
         sql_tasks: dict[str, SqlTaskFile] = {}
         katas: dict[str, Kata] = {}
+        labs: dict[str, Lab] = {}
 
         for skill in skills:
             quiz_task = self.quiz_task(skill)
@@ -74,9 +77,18 @@ class ContentIndex:
                 except KataError:
                     logger.warning("kata.load.failed", skill_id=skill.id)
 
+            lab_task = self.lab_task(skill)
+            if lab_task is not None:
+                try:
+                    name = str(lab_task.spec["path"]).removeprefix("labs/")
+                    labs[skill.id] = load_lab(self.content_root, name)
+                except LabError:
+                    logger.warning("lab.load.failed", skill_id=skill.id)
+
         self.quizzes = quizzes
         self.sql_tasks = sql_tasks
         self.katas = katas
+        self.labs = labs
 
         logger.info(
             "content.loaded",
@@ -84,6 +96,7 @@ class ContentIndex:
             quizzes=len(self.quizzes),
             sql_tasks=len(self.sql_tasks),
             katas=len(self.katas),
+            labs=len(self.labs),
         )
 
     @staticmethod
@@ -97,6 +110,10 @@ class ContentIndex:
     @staticmethod
     def kata_task(skill: SkillSpec) -> TaskSpec | None:
         return next((task for task in skill.tasks if task.type == "kata"), None)
+
+    @staticmethod
+    def lab_task(skill: SkillSpec) -> TaskSpec | None:
+        return next((task for task in skill.tasks if task.type == "lab"), None)
 
     def skill(self, skill_id: str) -> SkillSpec:
         try:

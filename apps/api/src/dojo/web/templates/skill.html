@@ -50,6 +50,9 @@
     {% if skill.has_kata %}
       <a class="btn" href="/skills/{{ skill.id }}/kata">Написать код</a>
     {% endif %}
+    {% if skill.has_lab %}
+      <a class="btn" href="/skills/{{ skill.id }}/lab">Починить стенд</a>
+    {% endif %}
     <a class="btn secondary" href="/">Вернуться к графу</a>
   </div>
 </main>

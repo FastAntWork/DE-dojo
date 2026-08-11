@@ -26,8 +26,10 @@ from dojo.core.logging import get_logger
 from dojo.runner.datasets import DatasetError, ensure_dataset, load_dataset
 from dojo.runner.kata import Kata, KataError, KataResult, build_image, image_exists
 from dojo.runner.kata import run as run_kata
+from dojo.runner.lab import Lab, LabError, LabResult, reset_stand, run_check
 from dojo.runner.sql_check import SqlTaskError
 from dojo.runner.sql_check import check as sql_check
+from dojo.scheduler.attempts import record_attempt
 from dojo.web.routers.content import (
     QuizSubmission,
     SubmittedAnswer,
@@ -306,6 +308,187 @@ def _run_kata_safely(kata: Kata, answer: str) -> KataResult:
                 "проверь, что он запущен."
             ),
         )
+
+
+# ── Лабораторные стенды ──────────────────────────────────────────────────────
+#
+# Лаба отличается от каты и SQL-практики тем, что у неё есть СОСТОЯНИЕ: стенд
+# поднят или нет, вариант такой-то, подсказок открыто столько-то. Состояние
+# живёт в памяти процесса, потому что стенд всё равно не переживает
+# перезапуск: база пересоздаётся с нуля при каждом запуске варианта.
+
+
+@dataclass(slots=True)
+class Stand:
+    variant: int
+    dsn: str
+    hints_taken: int = 0
+
+
+def _stands(request: Request) -> dict[str, Stand]:
+    stands: dict[str, Stand] = request.app.state.lab_stands
+    return stands
+
+
+def _lab_or_404(index: ContentIndex, skill_id: str) -> Lab:
+    lab = index.labs.get(skill_id)
+    if lab is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"у узла {skill_id} нет лабы")
+    return lab
+
+
+def _lab_context(
+    request: Request,
+    index: ContentIndex,
+    skill_id: str,
+    result: LabResult | None,
+    **extra: Any,
+) -> Any:
+    lab = _lab_or_404(index, skill_id)
+    stand = _stands(request).get(skill_id)
+    hints = lab.hints[: stand.hints_taken] if stand else ()
+
+    # Разбор уезжает в браузер ТОЛЬКО после зачёта. Не «скрыт стилями» и не
+    # спрятан в свёрнутый блок, а физически отсутствует в ответе: иначе он
+    # читается через «просмотр кода страницы», и лаба перестаёт быть задачей.
+    solution_html = markdown.render(lab.solution) if result and result.passed else None
+
+    return context(
+        request,
+        skill=index.skill(skill_id),
+        lab=lab,
+        brief_html=markdown.render(lab.brief),
+        stand=stand,
+        hints=hints,
+        next_hint=lab.hints[len(hints)] if len(hints) < len(lab.hints) else None,
+        result=result,
+        solution_html=solution_html,
+        **extra,
+    )
+
+
+@router.get("/skills/{skill_id}/lab", response_class=HTMLResponse)
+async def lab_page(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request, "lab.html", _lab_context(request, index, skill_id, result=None)
+    )
+
+
+@router.post("/skills/{skill_id}/lab/start", response_class=HTMLResponse)
+async def lab_start(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    """Поднимает стенд заново. Всё, что человек успел сделать, пропадает.
+
+    Пересоздание, а не починка: со своей базой человек мог сделать что угодно,
+    и гарантировать исходное состояние можно только сборкой с нуля.
+    """
+    lab = _lab_or_404(index, skill_id)
+
+    form = await request.form()
+    variant = _requested_variant(form.get("variant"), lab)
+
+    try:
+        dsn = await reset_stand(request.app.state.settings.database_url, lab, variant)
+    except (LabError, OSError, asyncpg.PostgresError) as exc:
+        logger.warning("lab.stand.failed", skill_id=skill_id, error=str(exc))
+        return templates.TemplateResponse(
+            request,
+            "_lab_panel.html",
+            _lab_context(request, index, skill_id, result=None, stand_error=_stand_error(exc)),
+        )
+
+    _stands(request)[skill_id] = Stand(variant=variant, dsn=dsn)
+    return templates.TemplateResponse(
+        request, "_lab_panel.html", _lab_context(request, index, skill_id, result=None)
+    )
+
+
+def _requested_variant(raw: Any, lab: Lab) -> int:
+    """Вариант из формы. Случайный, если не выбран явно."""
+    try:
+        variant = int(str(raw))
+    except (TypeError, ValueError):
+        # S311: выбор варианта задачи, криптостойкость не требуется.
+        return random.randint(1, lab.variants)  # noqa: S311
+    return min(max(variant, 1), lab.variants)
+
+
+def _stand_error(exc: Exception) -> str:
+    if isinstance(exc, LabError):
+        return str(exc)
+    return (
+        f"Не удалось поднять стенд: {exc}. Лабе нужен работающий PostgreSQL — "
+        "проверь, что хранилища запущены."
+    )
+
+
+@router.post("/skills/{skill_id}/lab/hint", response_class=HTMLResponse)
+async def lab_hint(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    lab = _lab_or_404(index, skill_id)
+    stand = _stands(request).get(skill_id)
+    if stand is not None and stand.hints_taken < len(lab.hints):
+        stand.hints_taken += 1
+
+    return templates.TemplateResponse(
+        request, "_lab_panel.html", _lab_context(request, index, skill_id, result=None)
+    )
+
+
+@router.post("/skills/{skill_id}/lab/check", response_class=HTMLResponse)
+async def lab_check(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    lab = _lab_or_404(index, skill_id)
+    stand = _stands(request).get(skill_id)
+    if stand is None:
+        return templates.TemplateResponse(
+            request,
+            "_lab_panel.html",
+            _lab_context(
+                request, index, skill_id, result=None, stand_error="Стенд не поднят — запусти лабу."
+            ),
+        )
+
+    # check.py — отдельный процесс с сетевыми обращениями к базе. В потоке,
+    # чтобы длинная проверка не держала весь сервер.
+    result = await asyncio.to_thread(run_check, lab, stand.dsn, stand.variant)
+    await _save_lab_attempt(request, index, skill_id, result, stand)
+
+    return templates.TemplateResponse(
+        request, "_lab_panel.html", _lab_context(request, index, skill_id, result=result)
+    )
+
+
+async def _save_lab_attempt(
+    request: Request, index: ContentIndex, skill_id: str, result: LabResult, stand: Stand
+) -> None:
+    """Пишет попытку. Недоступная база не должна ронять уже сданную лабу."""
+    task = ContentIndex.lab_task(index.skill(skill_id))
+    database = request.app.state.db
+    if task is None or not database.is_connected:
+        return
+
+    lab = index.labs[skill_id]
+    # Штраф берётся по самой дорогой открытой подсказке, а не суммой: иначе
+    # человеку, честно дошедшему до третьего уровня, выгоднее было бы сразу
+    # открыть последнюю.
+    penalty = max((h.penalty for h in lab.hints[: stand.hints_taken]), default=0.0)
+    score = round(max(result.score * (1 - penalty), 0.0), 2)
+
+    try:
+        async with database.acquire() as conn, conn.transaction():
+            await record_attempt(
+                conn,
+                task_id=task.id,
+                skill_id=skill_id,
+                score=score,
+                hints_used=stand.hints_taken,
+                checks={
+                    "variant": stand.variant,
+                    "checks": [
+                        {"name": c.name, "ok": c.ok, "detail": c.detail} for c in result.checks
+                    ],
+                },
+            )
+    except (asyncpg.PostgresError, OSError, TimeoutError):
+        logger.warning("attempt.save.failed", skill_id=skill_id, exc_info=True)
 
 
 @router.get("/progress", response_class=HTMLResponse)

@@ -49,6 +49,7 @@ class SkillSummary(BaseModel):
     has_quiz: bool
     has_sql: bool = Field(description="Есть практика на настоящей базе")
     has_kata: bool = Field(description="Есть ката с прогоном тестов в песочнице")
+    has_lab: bool = Field(description="Есть лаба: сломанный стенд и вопрос «почини»")
     theory_ready: bool = Field(description="Теория написана, а не заглушка")
 
 
@@ -123,6 +124,7 @@ def _summary(index: ContentIndex, skill_id: str) -> SkillSummary:
         has_quiz=skill.id in index.quizzes,
         has_sql=skill.id in index.sql_tasks,
         has_kata=skill.id in index.katas,
+        has_lab=skill.id in index.labs,
         theory_ready=not index.is_stub_theory(skill.id),
     )
 
