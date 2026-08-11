@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,6 +39,10 @@ class Settings(BaseSettings):
         default="redis://127.0.0.1:6379/0",
         alias="REDIS_URL",
     )
+
+    # Каталог с учебным контентом. Пусто — ищется вверх по дереву от кода;
+    # в контейнере задаётся явно, потому что content монтируется томом.
+    content_dir: Path | None = Field(default=None, alias="CONTENT_DIR")
 
     @property
     def is_local(self) -> bool:

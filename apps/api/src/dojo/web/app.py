@@ -16,11 +16,12 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from dojo.content.registry import find_content_root, load_index
 from dojo.core.cache import Cache
 from dojo.core.config import Settings, get_settings
 from dojo.core.db import Database
 from dojo.core.logging import configure_logging, get_logger
-from dojo.web.routers import health
+from dojo.web.routers import content, health
 
 logger = get_logger(__name__)
 
@@ -39,6 +40,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.db = db
         app.state.cache = cache
+
+        # Контент читается с диска один раз: он меняется коммитом, а не сам
+        # по себе. Каталог смонтирован томом, поэтому правка узла видна после
+        # перезапуска контейнера, без пересборки образа.
+        content_root = settings.content_dir or find_content_root()
+        app.state.content = load_index(content_root, content_root.parent)
 
         # Падать на старте из-за недоступной БД нельзя: `docker compose up`
         # стал бы гонкой за порядок готовности контейнеров. Незаполненный
@@ -82,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
+    app.include_router(content.router)
     return app
 
 

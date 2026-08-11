@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,16 @@ class Option:
     text: str
     correct: bool
 
+    @property
+    def id(self) -> str:
+        """Устойчивый идентификатор варианта — хеш его текста.
+
+        Нужен, чтобы отдавать варианты клиенту, не раскрывая правильности:
+        браузер получает id и текст, признак correct остаётся на сервере.
+        Позиционный номер для этого не годится — варианты перемешиваются.
+        """
+        return hashlib.sha256(self.text.encode("utf-8")).hexdigest()[:12]
+
 
 @dataclass(frozen=True, slots=True)
 class Question:
@@ -38,6 +49,14 @@ class Question:
     @property
     def correct_indices(self) -> frozenset[int]:
         return frozenset(i for i, option in enumerate(self.options) if option.correct)
+
+    @property
+    def correct_option_ids(self) -> frozenset[str]:
+        return frozenset(option.id for option in self.options if option.correct)
+
+    def grade_ids(self, chosen_ids: set[str]) -> bool:
+        """Проверяет ответ, пришедший от клиента набором идентификаторов."""
+        return frozenset(chosen_ids) == self.correct_option_ids
 
     @property
     def multiple(self) -> bool:

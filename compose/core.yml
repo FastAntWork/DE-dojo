@@ -86,6 +86,13 @@ services:
       REDIS_URL: redis://redis:6379/0
       DOJO_ENV: ${DOJO_ENV:-local}
       DOJO_LOG_LEVEL: ${DOJO_LOG_LEVEL:-INFO}
+      CONTENT_DIR: /app/content
+    volumes:
+      # Контент монтируется, а не копируется в образ: он меняется коммитом
+      # в разы чаще кода, и пересобирать образ ради правки формулировки в
+      # узле — лишняя минута на каждое изменение. Только чтение: API его
+      # не пишет, источник истины — файлы в git.
+      - ../content:/app/content:ro
     ports:
       - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
     depends_on:
