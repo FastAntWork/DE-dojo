@@ -54,3 +54,261 @@ questions:
       ROW_NUMBER же присвоит 1, 2, 3 и при равенстве выберет порядок
       недетерминированно, если ORDER BY не доопределён — отсюда «плавающие»
       результаты между запусками.
+
+  - id: window-vs-group-by
+    kind: single
+    prompt: |
+      Главное отличие оконной функции от агрегата с GROUP BY?
+    options:
+      - text: "Оконная функция считает агрегат, но НЕ схлопывает строки: каждая строка остаётся на месте и получает значение"
+        correct: true
+      - text: "Оконная функция работает быстрее"
+      - text: "Оконная функция не поддерживает sum и count"
+      - text: "Оконная функция применяется до WHERE"
+    explanation: |
+      Из этого следует и практическое правило выбора: нужна одна строка на
+      группу — GROUP BY; нужно к каждой строке добавить характеристику её
+      группы — оконная функция.
+
+  - id: window-execution-order
+    kind: single
+    prompt: |
+      На каком этапе выполняется оконная функция?
+    options:
+      - text: "После WHERE, GROUP BY и HAVING, но до ORDER BY и LIMIT — поэтому в WHERE её результат недоступен"
+        correct: true
+      - text: "До WHERE, поэтому окно видит все строки таблицы"
+      - text: "После ORDER BY"
+      - text: "Одновременно с GROUP BY"
+    explanation: |
+      Отсюда типичная ошибка: попытка написать `WHERE row_number() OVER (...) = 1`.
+      Нужен подзапрос или CTE — сначала посчитать номер, потом фильтровать по
+      нему снаружи.
+
+  - id: window-filter-by-row-number
+    kind: find-error
+    prompt: |
+      ```sql
+      SELECT * FROM orders
+      WHERE row_number() OVER (PARTITION BY customer_id ORDER BY created_at DESC) = 1
+      ```
+      Почему запрос не работает?
+    options:
+      - text: "Оконные функции недоступны в WHERE: он выполняется раньше. Нужно вычислить номер в подзапросе и фильтровать снаружи"
+        correct: true
+      - text: "row_number требует указания frame"
+      - text: "PARTITION BY нельзя использовать вместе с ORDER BY"
+      - text: "Нужен GROUP BY customer_id"
+    explanation: |
+      Стандартный шаблон: CTE с row_number, затем `SELECT ... WHERE rn = 1`.
+      В PostgreSQL ту же задачу решает DISTINCT ON, обычно дешевле.
+
+  - id: window-partition-by-meaning
+    kind: single
+    prompt: |
+      Что делает PARTITION BY в определении окна?
+    options:
+      - text: "Разбивает строки на независимые группы; функция считается внутри каждой отдельно и не видит соседние группы"
+        correct: true
+      - text: "Физически разделяет таблицу на секции"
+      - text: "Сортирует результат"
+      - text: "Ограничивает число возвращаемых строк"
+    explanation: |
+      Физическое секционирование таблиц — совсем другой механизм с тем же
+      словом в названии. PARTITION BY существует только на время выполнения
+      запроса.
+
+  - id: window-no-partition
+    kind: single
+    prompt: |
+      Что означает `sum(amount) OVER ()` — окно без PARTITION BY и ORDER BY?
+    options:
+      - text: "Сумму по всем строкам результата, добавленную к каждой строке"
+        correct: true
+      - text: "Сумму нарастающим итогом"
+      - text: "Сумму по текущей строке, то есть само значение"
+      - text: "Ошибку: окно обязано содержать PARTITION BY"
+    explanation: |
+      Удобный приём для расчёта долей: `amount / sum(amount) OVER ()` даёт
+      вклад строки в общий итог без отдельного подзапроса.
+
+  - id: window-running-total
+    kind: single
+    prompt: |
+      Как посчитать нарастающий итог по датам?
+    options:
+      - text: "sum(amount) OVER (ORDER BY day) — наличие ORDER BY превращает окно в нарастающее"
+        correct: true
+      - text: "sum(amount) OVER (PARTITION BY day)"
+      - text: "sum(amount) OVER () с последующей сортировкой"
+      - text: "Нарастающий итог оконными функциями не считается"
+    explanation: |
+      Ключевая деталь: ORDER BY внутри OVER меняет рамку по умолчанию с «вся
+      партиция» на «от начала до текущей строки». Именно поэтому один и тот же
+      sum ведёт себя по-разному.
+
+  - id: window-default-frame
+    kind: single
+    prompt: |
+      Какая рамка действует по умолчанию, если в OVER есть ORDER BY?
+    options:
+      - text: "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW — от начала партиции до текущей строки включительно со всеми равными ей по ключу сортировки"
+        correct: true
+      - text: "ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING"
+      - text: "ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING"
+      - text: "Рамка не применяется"
+    explanation: |
+      Именно эта рамка по умолчанию и делает last_value бесполезной без явного
+      указания рамки: «последняя строка» на текущий момент — это и есть
+      текущая строка.
+
+  - id: window-lag-lead
+    kind: single
+    prompt: |
+      Что делает `LAG(amount, 1) OVER (PARTITION BY user_id ORDER BY day)`?
+    options:
+      - text: "Возвращает значение amount из предыдущей строки того же пользователя по порядку дат"
+        correct: true
+      - text: "Возвращает значение из следующей строки"
+      - text: "Сдвигает всю колонку на одну строку вниз в результате"
+      - text: "Возвращает разницу с предыдущей строкой"
+    explanation: |
+      Пара к ней — LEAD, смотрящая вперёд. Разницу считают вычитанием:
+      `amount - LAG(amount) OVER (...)`. У первой строки партиции LAG вернёт
+      NULL, и это надо обрабатывать.
+
+  - id: window-lag-default
+    kind: single
+    prompt: |
+      Как задать значение, возвращаемое LAG для первой строки партиции?
+    options:
+      - text: "Третьим аргументом: LAG(amount, 1, 0)"
+        correct: true
+      - text: "Через COALESCE только снаружи"
+      - text: "Через IGNORE NULLS"
+      - text: "Никак: всегда возвращается NULL"
+    explanation: |
+      Третий аргумент удобен именно для расчёта приростов: без него первая
+      строка каждой партиции даёт NULL, и суммарный прирост оказывается NULL
+      целиком.
+
+  - id: window-ntile
+    kind: single
+    prompt: |
+      Что делает NTILE(4)?
+    options:
+      - text: "Делит строки партиции на четыре примерно равные по количеству группы и возвращает номер группы"
+        correct: true
+      - text: "Возвращает 25-й процентиль значения"
+      - text: "Оставляет каждую четвёртую строку"
+      - text: "Считает четыре первых строки партиции"
+    explanation: |
+      Важное отличие от процентилей: NTILE делит по КОЛИЧЕСТВУ строк, а не по
+      значению. Для сегментации клиентов на квартили по выручке это обычно то,
+      что нужно.
+
+  - id: window-first-value-frame
+    kind: single
+    prompt: |
+      `first_value(amount) OVER (PARTITION BY user_id ORDER BY day)` работает
+      как ожидается, а `last_value` возвращает текущую строку. Почему?
+    options:
+      - text: "Из-за рамки по умолчанию: она заканчивается на текущей строке, поэтому «последняя» и есть текущая; нужно указать ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING"
+        correct: true
+      - text: "last_value не поддерживается в PostgreSQL"
+      - text: "Нужно поменять направление ORDER BY"
+      - text: "last_value требует PARTITION BY по другой колонке"
+    explanation: |
+      Одна из самых частых ловушек оконных функций. Альтернатива — взять
+      first_value с обратной сортировкой, что читается проще, чем явная рамка.
+
+  - id: window-rows-vs-range-duplicates
+    kind: single
+    prompt: |
+      Данные содержат несколько строк с одинаковой датой. Чем ROWS отличается
+      от RANGE при рамке «до текущей строки»?
+    options:
+      - text: "RANGE включит все строки, равные текущей по ключу сортировки, а ROWS — строго до текущей физической строки"
+        correct: true
+      - text: "Разницы нет при наличии ORDER BY"
+      - text: "ROWS включает равные значения, RANGE — нет"
+      - text: "RANGE работает только с числовыми колонками"
+    explanation: |
+      На данных без дубликатов ключа сортировки они дают одинаковый результат —
+      поэтому ошибку часто замечают только когда дубликаты появляются в
+      продакшене.
+
+  - id: window-cumulative-distinct
+    kind: single
+    prompt: |
+      Можно ли посчитать `count(DISTINCT user_id) OVER (ORDER BY day)` в
+      PostgreSQL?
+    options:
+      - text: "Нет: DISTINCT внутри оконного агрегата не поддерживается, задачу решают иначе — например, отметив первое появление каждого пользователя"
+        correct: true
+      - text: "Да, это стандартная конструкция"
+      - text: "Да, но только с указанием рамки ROWS"
+      - text: "Да, но результат будет приблизительным"
+    explanation: |
+      Обычный приём: пометить строку, где пользователь встретился впервые
+      (`row_number() OVER (PARTITION BY user_id ORDER BY day) = 1`), и считать
+      нарастающую сумму этих отметок.
+
+  - id: window-multiple-windows
+    kind: single
+    prompt: |
+      В запросе три оконные функции с одинаковым OVER. Что стоит сделать?
+    options:
+      - text: "Объявить окно один раз через WINDOW w AS (...) и ссылаться на него — короче и исключает расхождение при правке"
+        correct: true
+      - text: "Разбить запрос на три подзапроса"
+      - text: "Ничего: повторение обязательно по стандарту"
+      - text: "Использовать GROUP BY вместо окон"
+    explanation: |
+      Главная выгода не в краткости, а в том, что при изменении окна его
+      правят в одном месте. Три скопированных OVER рано или поздно разъедутся.
+
+  - id: window-performance-sort
+    kind: single
+    prompt: |
+      Почему оконная функция часто приводит к сортировке в плане запроса?
+    options:
+      - text: "Партиции и порядок внутри них надо чем-то обеспечить: без подходящего индекса СУБД сортирует данные"
+        correct: true
+      - text: "Оконные функции всегда материализуют промежуточный результат на диске"
+      - text: "Сортировка нужна для соблюдения ORDER BY в конце запроса"
+      - text: "Это ошибка планировщика"
+    explanation: |
+      Индекс по `(колонки PARTITION BY, колонки ORDER BY)` может убрать шаг
+      сортировки целиком — заметная оптимизация на больших таблицах.
+
+  - id: window-top-n-per-group
+    kind: single
+    prompt: |
+      Нужны три самых дорогих заказа каждого клиента. Какой подход подходит?
+    options:
+      - text: "row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) в подзапросе и фильтр rn <= 3 снаружи"
+        correct: true
+      - text: "GROUP BY customer_id с max(amount) три раза"
+      - text: "DISTINCT ON (customer_id) с LIMIT 3"
+      - text: "ORDER BY amount DESC LIMIT 3"
+    explanation: |
+      DISTINCT ON вернёт ровно одну строку на группу, поэтому для топ-3 не
+      годится. LIMIT 3 отберёт три заказа по всей таблице, а не по каждому
+      клиенту.
+
+  - id: window-rank-gaps
+    kind: single
+    prompt: |
+      Три строки с одинаковым значением получили RANK = 1. Какой ранг будет у
+      следующей строки?
+    options:
+      - text: "4: RANK оставляет пропуски, соответствующие числу связанных строк"
+        correct: true
+      - text: "2"
+      - text: "3"
+      - text: "1"
+    explanation: |
+      DENSE_RANK в той же ситуации даст 2 — он не оставляет пропусков. Выбор
+      между ними это выбор смысла: «какое место в турнирной таблице» против
+      «какой это по счёту уровень значения».

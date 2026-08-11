@@ -55,3 +55,271 @@ questions:
       На одной колонке оба дают одинаковый набор значений, включая ровно один NULL.
       Разница в возможностях: GROUP BY открывает агрегаты и HAVING. По скорости
       однозначного победителя нет — план зависит от статистики и наличия индекса.
+
+  - id: select-logical-order
+    kind: single
+    prompt: |
+      В каком порядке СУБД логически обрабатывает части запроса?
+    options:
+      - text: "FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT"
+        correct: true
+      - text: "SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY"
+      - text: "FROM → SELECT → WHERE → GROUP BY → ORDER BY → HAVING"
+      - text: "Порядок не определён, оптимизатор выбирает его сам"
+    explanation: |
+      Из этого порядка выводятся почти все правила, которые иначе приходится
+      зубрить: почему псевдоним из SELECT не виден в WHERE (SELECT ещё не
+      выполнялся), почему в ORDER BY он виден (SELECT уже выполнен), почему
+      WHERE не умеет фильтровать по агрегату.
+
+  - id: select-alias-in-order-by
+    kind: single
+    prompt: |
+      ```sql
+      SELECT amount * 1.2 AS total FROM orders ORDER BY total
+      ```
+      Сработает ли этот запрос?
+    options:
+      - text: "Да: ORDER BY выполняется после SELECT, поэтому псевдоним ему виден"
+        correct: true
+      - text: "Нет: псевдонимы нельзя использовать нигде, кроме списка выбора"
+      - text: "Нет: нужно повторить выражение целиком"
+      - text: "Да, но только в PostgreSQL"
+    explanation: |
+      Прямое следствие логического порядка. В WHERE тот же псевдоним не
+      сработал бы: на момент фильтрации SELECT ещё не выполнялся.
+
+  - id: select-null-not-in
+    kind: find-error
+    prompt: |
+      ```sql
+      SELECT * FROM orders
+      WHERE status NOT IN ('cancelled', 'refunded', NULL)
+      ```
+      Запрос вернул ноль строк, хотя данные есть. Почему?
+    options:
+      - text: "NOT IN со списком, содержащим NULL, не вернёт ничего: сравнение с NULL даёт неизвестность, и условие никогда не истинно"
+        correct: true
+      - text: "NOT IN не работает со строковыми значениями"
+      - text: "Нужно писать NOT IN (SELECT ...), а не список литералов"
+      - text: "В списке слишком много значений"
+    explanation: |
+      Классическая ловушка. `x NOT IN (a, b, NULL)` разворачивается в
+      `x <> a AND x <> b AND x <> NULL`, где последнее — всегда неизвестность.
+      Лечится удалением NULL из списка или заменой на NOT EXISTS.
+
+  - id: select-coalesce-vs-nullif
+    kind: single
+    prompt: |
+      Что делает `NULLIF(a, 0)`?
+    options:
+      - text: "Возвращает NULL, если a равно нулю, иначе a — типичный приём защиты от деления на ноль"
+        correct: true
+      - text: "Возвращает ноль, если a равно NULL"
+      - text: "Возвращает первое не-NULL значение из двух"
+      - text: "Проверяет, что a не равно NULL, и возвращает булево"
+    explanation: |
+      Пара к нему — COALESCE, возвращающая первое не-NULL значение. Связка
+      `x / NULLIF(y, 0)` даёт NULL вместо ошибки деления на ноль.
+
+  - id: select-three-valued-logic
+    kind: single
+    prompt: |
+      Чему равно `NULL = NULL` в SQL?
+    options:
+      - text: "NULL (неизвестность), а не истина — поэтому для проверки используют IS NULL"
+        correct: true
+      - text: "TRUE: два неизвестных значения равны"
+      - text: "FALSE"
+      - text: "Зависит от настроек СУБД"
+    explanation: |
+      SQL использует трёхзначную логику: TRUE, FALSE, UNKNOWN. Строка попадает
+      в результат только при TRUE, поэтому UNKNOWN ведёт себя как отказ —
+      и в WHERE, и в NOT IN, и в CHECK-ограничениях (там наоборот).
+
+  - id: select-distinct-cost
+    kind: single
+    prompt: |
+      Почему DISTINCT не стоит ставить «на всякий случай»?
+    options:
+      - text: "Он требует сортировки или хеширования всего результата, а главное — маскирует настоящую причину дубликатов, обычно ошибку в соединении"
+        correct: true
+      - text: "Он не работает с числовыми колонками"
+      - text: "Он игнорирует NULL"
+      - text: "Он запрещён вместе с ORDER BY"
+    explanation: |
+      Второе важнее первого. DISTINCT, добавленный чтобы «убрать лишние
+      строки», прячет задвоение из соединения — и оно всплывёт позже, когда
+      суммы окажутся завышенными.
+
+  - id: select-limit-without-order
+    kind: single
+    prompt: |
+      ```sql
+      SELECT * FROM events LIMIT 10
+      ```
+      Какие 10 строк вернутся?
+    options:
+      - text: "Любые: без ORDER BY порядок не определён и может меняться от запуска к запуску"
+        correct: true
+      - text: "Первые 10 по порядку вставки"
+      - text: "10 строк с наименьшим первичным ключом"
+      - text: "Последние 10 добавленных"
+    explanation: |
+      Порядок без ORDER BY зависит от плана, параллелизма и физического
+      размещения строк. Особенно коварно в пагинации: LIMIT/OFFSET без
+      устойчивой сортировки выдаёт то дубликаты, то пропуски.
+
+  - id: select-pagination-offset
+    kind: single
+    prompt: |
+      Пагинация через `ORDER BY created_at LIMIT 20 OFFSET 100000` работает
+      всё медленнее. Почему и что делать?
+    options:
+      - text: "СУБД всё равно обязана отобрать и отбросить 100 000 строк; помогает keyset-пагинация: WHERE created_at < последнее_значение ORDER BY created_at LIMIT 20"
+        correct: true
+      - text: "OFFSET не использует индексы вовсе, нужно убрать ORDER BY"
+      - text: "Проблема в LIMIT, его надо увеличить"
+      - text: "Нужно добавить DISTINCT"
+    explanation: |
+      OFFSET не пропускает строки бесплатно — он их читает и выбрасывает.
+      Keyset-пагинация («листание по ключу») сохраняет постоянную стоимость
+      страницы независимо от глубины.
+
+  - id: select-case-expression
+    kind: single
+    prompt: |
+      Что вернёт `CASE WHEN status = 'new' THEN 1 END` для строки со
+      статусом 'paid'?
+    options:
+      - text: "NULL: ветки ELSE нет, а невыполненный CASE даёт NULL"
+        correct: true
+      - text: "0"
+      - text: "Пустую строку"
+      - text: "Ошибку выполнения"
+    explanation: |
+      Важно при агрегации: `sum(CASE WHEN ... THEN 1 END)` посчитает верно,
+      потому что sum игнорирует NULL, а `count(CASE ...)` — тоже верно, но по
+      другой причине. А вот avg по такому выражению даст не то, что ожидается.
+
+  - id: select-where-vs-on
+    kind: single
+    prompt: |
+      Чем `LEFT JOIN t ON a.id = t.id AND t.status = 'ok'` отличается от того
+      же соединения с условием `t.status = 'ok'` в WHERE?
+    options:
+      - text: "В ON условие применяется до соединения и не отбрасывает строки левой таблицы; в WHERE оно отфильтрует строки, где t.status оказался NULL, превратив LEFT JOIN в INNER"
+        correct: true
+      - text: "Разницы нет, оптимизатор приводит их к одному плану"
+      - text: "В ON условие применяется только к правой таблице, а в WHERE — к обеим"
+      - text: "В WHERE условие выполняется быстрее"
+    explanation: |
+      Одна из самых частых причин тихой потери строк. Правило: условия по
+      правой таблице внешнего соединения место в ON, а не в WHERE.
+
+  - id: select-implicit-cast
+    kind: single
+    prompt: |
+      Колонка `user_id` имеет тип `text`, запрос фильтрует
+      `WHERE user_id = 12345`. Что произойдёт в PostgreSQL?
+    options:
+      - text: "Ошибка типов: PostgreSQL не приводит text к integer неявно в сравнении"
+        correct: true
+      - text: "Запрос отработает, но индекс по user_id использоваться не будет"
+      - text: "Запрос отработает и использует индекс"
+      - text: "Число будет округлено до строки автоматически"
+    explanation: |
+      PostgreSQL строг к типам — и это хорошо: в СУБД с неявным приведением
+      такой запрос молча теряет индекс и работает полным сканированием.
+      Сравнивать надо с литералом того же типа: `= '12345'`.
+
+  - id: select-in-vs-exists
+    kind: single
+    prompt: |
+      Когда `EXISTS` предпочтительнее `IN` с подзапросом?
+    options:
+      - text: "Когда подзапрос может вернуть NULL или когда достаточно факта существования: EXISTS не страдает от NULL-семантики и может остановиться на первой найденной строке"
+        correct: true
+      - text: "Всегда: IN устарел"
+      - text: "Только когда подзапрос возвращает одну строку"
+      - text: "Когда нужно вернуть значения из подзапроса"
+    explanation: |
+      Обратное тоже верно: NOT EXISTS ведёт себя предсказуемо там, где
+      NOT IN ломается на NULL. По производительности современные планировщики
+      часто приводят IN и EXISTS к одному плану.
+
+  - id: select-union-vs-union-all
+    kind: single
+    prompt: |
+      Чем `UNION` отличается от `UNION ALL`?
+    options:
+      - text: "UNION убирает дубликаты, а значит требует сортировки или хеширования всего результата; UNION ALL просто склеивает и потому дешевле"
+        correct: true
+      - text: "UNION ALL убирает дубликаты, а UNION нет"
+      - text: "UNION работает только с двумя запросами"
+      - text: "Разница только в синтаксисе"
+    explanation: |
+      Практическое правило: если дубликатов заведомо нет (объединяются
+      непересекающиеся периоды), UNION ALL надо ставить сознательно — это
+      бесплатное ускорение.
+
+  - id: select-order-by-null
+    kind: single
+    prompt: |
+      Где окажутся NULL при `ORDER BY amount DESC` в PostgreSQL?
+    options:
+      - text: "В начале: по умолчанию NULL считаются больше любого значения при сортировке по убыванию"
+        correct: true
+      - text: "В конце: NULL всегда сортируются последними"
+      - text: "Порядок NULL не определён"
+      - text: "NULL исключаются из результата"
+    explanation: |
+      Поведение различается между СУБД, поэтому при наличии NULL порядок стоит
+      задавать явно: `ORDER BY amount DESC NULLS LAST`. Иначе отчёт «топ-10»
+      начнётся с пустых значений.
+
+  - id: select-count-null-column
+    kind: single
+    prompt: |
+      В таблице 1000 строк, из них у 300 колонка `email` пуста (NULL). Что
+      вернёт `count(email)`?
+    options:
+      - text: "700: count по колонке считает только не-NULL значения"
+        correct: true
+      - text: "1000"
+      - text: "300"
+      - text: "Ошибку: count требует count(*)"
+    explanation: |
+      Отсюда полезный приём: разница `count(*) - count(колонка)` даёт число
+      пропусков одним запросом — базовая проверка полноты данных.
+
+  - id: select-boolean-filter-null
+    kind: single
+    prompt: |
+      Колонка `is_active` типа boolean допускает NULL. Запрос
+      `WHERE is_active = false` вернёт строки с NULL?
+    options:
+      - text: "Нет: сравнение NULL с false даёт неизвестность, строка не попадёт в результат"
+        correct: true
+      - text: "Да: NULL интерпретируется как false"
+      - text: "Да, если включён строгий режим"
+      - text: "Вернёт ошибку типов"
+    explanation: |
+      Чтобы включить NULL, нужно `WHERE is_active IS DISTINCT FROM true` или
+      явное `OR is_active IS NULL`. Ещё лучше — запретить NULL в такой колонке
+      ограничением NOT NULL с значением по умолчанию.
+
+  - id: select-select-star-production
+    kind: single
+    prompt: |
+      Почему `SELECT *` не стоит использовать в коде пайплайна?
+    options:
+      - text: "Форма результата молча меняется вместе с источником: добавили колонку — поехали позиции, удалили — сломалось всё ниже по течению"
+        correct: true
+      - text: "Он всегда выполняется медленнее перечисления колонок"
+      - text: "Он не работает с представлениями"
+      - text: "Он запрещён стандартом SQL"
+    explanation: |
+      Скорость здесь вторична (хотя в колоночных хранилищах разница огромна).
+      Главное — явный список колонок это контракт с источником: он ломается
+      громко и сразу, а не тихо и позже.

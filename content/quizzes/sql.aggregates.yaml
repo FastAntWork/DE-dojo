@@ -53,3 +53,267 @@ questions:
       работает для любых агрегатов. Оба счётчика вычисляются за один проход,
       в отличие от варианта с двумя подзапросами.
     source: "postgres-docs:sql-expressions.html#syntax-aggregates"
+
+  - id: aggregates-null-ignored
+    kind: single
+    prompt: |
+      В колонке `amount` из 100 строк 30 содержат NULL. Что вернёт
+      `avg(amount)`?
+    options:
+      - text: "Среднее по 70 непустым значениям: агрегаты игнорируют NULL"
+        correct: true
+      - text: "Среднее по 100 значениям, где NULL считается нулём"
+      - text: "NULL, потому что в данных есть NULL"
+      - text: "Ошибку"
+    explanation: |
+      Разница принципиальная: если NULL по смыслу означает ноль, среднее
+      получится завышенным. Тогда нужен `avg(coalesce(amount, 0))` — и это
+      осознанное решение, а не техническая деталь.
+
+  - id: aggregates-empty-set
+    kind: single
+    prompt: |
+      Запрос `SELECT count(*), sum(amount) FROM orders WHERE 1 = 0` вернёт:
+    options:
+      - text: "Одну строку: count = 0, sum = NULL"
+        correct: true
+      - text: "Ноль строк"
+      - text: "Одну строку: count = 0, sum = 0"
+      - text: "Ошибку"
+    explanation: |
+      Агрегат без GROUP BY всегда возвращает ровно одну строку. При этом count
+      на пустом множестве даёт 0, а sum — NULL, и это регулярно ломает
+      арифметику ниже по течению. Лечится coalesce.
+
+  - id: aggregates-group-by-hidden-column
+    kind: find-error
+    prompt: |
+      ```sql
+      SELECT customer_id, city, count(*)
+      FROM orders
+      GROUP BY customer_id
+      ```
+      Почему PostgreSQL отвергнет этот запрос?
+    options:
+      - text: "Колонка city не входит ни в GROUP BY, ни в агрегат — для группы у неё нет однозначного значения"
+        correct: true
+      - text: "count(*) нельзя использовать вместе с обычными колонками"
+      - text: "Нужен ORDER BY при GROUP BY"
+      - text: "GROUP BY должен идти после HAVING"
+    explanation: |
+      Некоторые СУБД такое разрешают и молча берут произвольное значение —
+      источник трудноуловимых расхождений. Строгость PostgreSQL здесь
+      защищает. Если city функционально зависит от customer_id, его можно
+      добавить в GROUP BY.
+
+  - id: aggregates-count-distinct-cost
+    kind: single
+    prompt: |
+      Почему `count(DISTINCT user_id)` дороже обычного `count(user_id)`?
+    options:
+      - text: "Он обязан запомнить все встреченные значения — через сортировку или хеш-таблицу, тогда как обычный count лишь увеличивает счётчик"
+        correct: true
+      - text: "Он выполняет отдельный подзапрос"
+      - text: "Он не использует индексы"
+      - text: "Разницы в стоимости нет"
+    explanation: |
+      На больших объёмах именно поэтому появляются приближённые счётчики
+      уникальных (HyperLogLog): они дают ответ с известной погрешностью в
+      постоянной памяти.
+
+  - id: aggregates-having-vs-where-perf
+    kind: single
+    prompt: |
+      Условие `WHERE created_at >= '2025-01-01'` перенесли в HAVING. Что
+      изменится?
+    options:
+      - text: "Результат может остаться тем же, но группировать придётся весь объём, а отсекать — после: это лишняя работа"
+        correct: true
+      - text: "Ничего: оптимизатор всегда переносит такие условия в WHERE"
+      - text: "Запрос перестанет работать: в HAVING допустимы только агрегаты"
+      - text: "Результат изменится всегда"
+    explanation: |
+      Правило: в WHERE — всё, что можно проверить по отдельной строке; в
+      HAVING — только то, что требует посчитанного агрегата.
+
+  - id: aggregates-grouping-sets
+    kind: single
+    prompt: |
+      Нужны итоги по регионам, по категориям и общий итог одним запросом. Что
+      использовать?
+    options:
+      - text: "GROUPING SETS (или ROLLUP/CUBE): один проход по данным вместо трёх запросов с UNION ALL"
+        correct: true
+      - text: "Три отдельных запроса, объединённых UNION ALL — иначе никак"
+      - text: "DISTINCT ON"
+      - text: "Оконную функцию с несколькими PARTITION BY"
+    explanation: |
+      Экономия именно в числе проходов по данным. Отличить строку общего итога
+      от обычной помогает функция GROUPING, возвращающая признак агрегирования
+      по колонке.
+
+  - id: aggregates-filter-vs-case
+    kind: single
+    prompt: |
+      Чем `count(*) FILTER (WHERE status = 'paid')` лучше
+      `count(CASE WHEN status = 'paid' THEN 1 END)`?
+    options:
+      - text: "Читается яснее и выражает намерение прямо; результат тот же"
+        correct: true
+      - text: "Работает на порядок быстрее"
+      - text: "Позволяет считать по нескольким таблицам сразу"
+      - text: "Не требует GROUP BY"
+    explanation: |
+      FILTER — стандартная конструкция SQL и поддерживается PostgreSQL. Приём с
+      CASE остаётся полезным в СУБД без её поддержки, но там, где FILTER есть,
+      он предпочтительнее.
+
+  - id: aggregates-sum-overflow-type
+    kind: single
+    prompt: |
+      Почему `sum()` по колонке типа integer в PostgreSQL возвращает bigint?
+    options:
+      - text: "Чтобы сумма не переполнилась: результат заведомо может быть больше любого слагаемого"
+        correct: true
+      - text: "Потому что sum всегда возвращает вещественное число"
+      - text: "Из-за особенностей планировщика"
+      - text: "Это ошибка совместимости, тип нужно приводить вручную"
+    explanation: |
+      Полезно помнить при выгрузке в другую систему: колонка, объявленная int,
+      после агрегации становится bigint, и приёмник со строгими типами это
+      заметит.
+
+  - id: aggregates-avg-numeric
+    kind: single
+    prompt: |
+      Почему для денежных сумм не стоит использовать тип с плавающей точкой?
+    options:
+      - text: "Двоичное представление не хранит десятичные дроби точно, и суммы копеек накапливают ошибку; для денег нужен numeric/decimal"
+        correct: true
+      - text: "Плавающая точка занимает больше места"
+      - text: "Агрегаты не работают с float"
+      - text: "float не поддерживает отрицательные значения"
+    explanation: |
+      Классический вопрос собеседования. Расхождение в копейку на миллионе
+      операций превращается в расхождение отчётности, которое приходится
+      объяснять.
+
+  - id: aggregates-string-agg
+    kind: single
+    prompt: |
+      Что делает `string_agg(name, ', ' ORDER BY name)`?
+    options:
+      - text: "Склеивает значения группы в одну строку через разделитель в заданном порядке"
+        correct: true
+      - text: "Считает число уникальных значений"
+      - text: "Сортирует таблицу по name"
+      - text: "Возвращает массив значений"
+    explanation: |
+      Указание ORDER BY внутри агрегата существенно: без него порядок склейки
+      не определён, и результат будет меняться от запуска к запуску — что
+      мешает сравнивать выгрузки между собой.
+
+  - id: aggregates-array-agg
+    kind: single
+    prompt: |
+      Зачем нужен `array_agg`?
+    options:
+      - text: "Собрать значения группы в массив — например, список товаров заказа одной строкой"
+        correct: true
+      - text: "Развернуть массив в строки"
+      - text: "Посчитать длину массива"
+      - text: "Отсортировать массив"
+    explanation: |
+      Обратная операция — unnest, разворачивающая массив в строки. Пара
+      array_agg/unnest часто заменяет сложные конструкции с самосоединением.
+
+  - id: aggregates-percentile
+    kind: single
+    prompt: |
+      Нужна медиана времени отклика. Что использовать?
+    options:
+      - text: "percentile_cont(0.5) WITHIN GROUP (ORDER BY response_ms)"
+        correct: true
+      - text: "avg(response_ms)"
+      - text: "median(response_ms) — стандартная функция SQL"
+      - text: "sum(response_ms) / count(*)"
+    explanation: |
+      Отдельной функции median в стандарте нет. Медиана устойчива к выбросам,
+      в отличие от среднего, — поэтому для времени отклика и объёмов загрузки
+      берут именно её.
+
+  - id: aggregates-group-by-expression
+    kind: single
+    prompt: |
+      Можно ли группировать по выражению, например
+      `GROUP BY date_trunc('month', created_at)`?
+    options:
+      - text: "Да, и это стандартный приём агрегации по периодам"
+        correct: true
+      - text: "Нет, в GROUP BY допустимы только имена колонок"
+      - text: "Только если выражение вынесено в подзапрос"
+      - text: "Только при наличии индекса по этому выражению"
+    explanation: |
+      Индекс по выражению при этом существует отдельно и может ускорить такой
+      запрос — но обязательным условием не является.
+
+  - id: aggregates-distinct-on
+    kind: single
+    prompt: |
+      Нужно взять последний заказ каждого клиента. Что подходит в PostgreSQL?
+    options:
+      - text: "DISTINCT ON (customer_id) ... ORDER BY customer_id, created_at DESC либо оконная функция row_number"
+        correct: true
+      - text: "GROUP BY customer_id с max(created_at) и остальными колонками"
+      - text: "SELECT DISTINCT customer_id, created_at ORDER BY created_at DESC"
+      - text: "HAVING max(created_at)"
+    explanation: |
+      Соблазнительный вариант с GROUP BY и max даёт максимум даты, но остальные
+      колонки к этой дате не привязаны — можно получить «франкенштейна» из
+      разных строк. DISTINCT ON и row_number возвращают целую строку.
+
+  - id: aggregates-count-star-vs-one
+    kind: single
+    prompt: |
+      Есть ли разница между `count(*)` и `count(1)`?
+    options:
+      - text: "Нет: планировщик обрабатывает их одинаково, оба считают строки"
+        correct: true
+      - text: "count(1) быстрее, так как не читает колонки"
+      - text: "count(*) быстрее, так как использует статистику"
+      - text: "count(1) считает только строки, где первая колонка не NULL"
+    explanation: |
+      Распространённое суеверие. Разница есть только у `count(колонка)` — она
+      пропускает NULL. Между `*` и константой разницы нет ни в смысле, ни в
+      скорости.
+
+  - id: aggregates-approximate-count
+    kind: single
+    prompt: |
+      Нужно оценить число строк в огромной таблице, точность не критична. Что
+      быстрее полного count(*)?
+    options:
+      - text: "Оценка из статистики планировщика (reltuples в pg_class), обновляемая ANALYZE"
+        correct: true
+      - text: "count(*) с LIMIT"
+      - text: "count(DISTINCT id)"
+      - text: "Быстрее ничего нет: count(*) всегда оптимален"
+    explanation: |
+      count(*) в PostgreSQL честно читает таблицу из-за MVCC: разные
+      транзакции видят разное число строк. Оценка из статистики стоит одного
+      обращения к системному каталогу.
+
+  - id: aggregates-window-vs-group
+    kind: single
+    prompt: |
+      Нужно к каждой строке заказа добавить долю от суммы заказов клиента. Что
+      выбрать?
+    options:
+      - text: "Оконную функцию: sum(amount) OVER (PARTITION BY customer_id) — она не схлопывает строки"
+        correct: true
+      - text: "GROUP BY customer_id"
+      - text: "DISTINCT с подзапросом"
+      - text: "HAVING с агрегатом"
+    explanation: |
+      Ключевое различие: GROUP BY превращает много строк в одну, оконная
+      функция считает агрегат и оставляет все строки на месте.
