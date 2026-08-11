@@ -6,6 +6,11 @@
 *.bash text eol=lf
 Makefile text eol=lf
 
+# Батники — единственное исключение: cmd.exe спотыкается о LF в метках и
+# многострочных конструкциях, поэтому им нужен CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
 *.png binary
 *.jpg binary
 *.gz  binary

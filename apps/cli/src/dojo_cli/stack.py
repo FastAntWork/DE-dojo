@@ -146,6 +146,9 @@ def start(
     profile: Annotated[str, typer.Option(help="ai | analytics | storage | full")] = "",
     repo: Annotated[Path | None, typer.Option()] = None,
     port: Annotated[int, typer.Option(help="Порт API на хосте.")] = 8000,
+    open_window: Annotated[
+        bool, typer.Option("--app/--no-app", help="Открыть отдельным окном по готовности.")
+    ] = True,
 ) -> None:
     """Поднять стек, дождаться готовности, применить миграции и залить контент.
 
@@ -178,6 +181,11 @@ def start(
     console.print(f"\n  [bold]Готово.[/bold] Приложение: {base}")
     console.print(f"  Документация API: {base}/docs")
 
+    if open_window:
+        from dojo_cli.desktop import launch
+
+        launch(base)
+
 
 def _migrate() -> None:
     import asyncio
@@ -187,6 +195,22 @@ def _migrate() -> None:
 
     applied = asyncio.run(migrate(get_settings().database_url))
     console.print(f"  миграции: применено {len(applied)}")
+
+
+@app.command("app")
+def open_app(
+    port: Annotated[int, typer.Option(help="Порт API на хосте.")] = 8000,
+) -> None:
+    """Открыть Dojo отдельным окном, без вкладок и адресной строки."""
+    from dojo_cli.desktop import launch
+
+    url = f"http://127.0.0.1:{port}"
+    if launch(url):
+        console.print(f"  [green]Окно открыто:[/green] {url}")
+    console.print(
+        "  [dim]Совет: в самом окне можно нажать «Установить» — тогда Dojo\n"
+        "  появится в меню «Пуск» и будет запускаться без этой команды.[/dim]"
+    )
 
 
 @app.command("stop")

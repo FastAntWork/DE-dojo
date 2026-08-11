@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}DE Dojo{% endblock %}</title>
+
+  {# Манифест делает приложение устанавливаемым: браузер предложит «Установить»,
+     и оно получит своё окно без адресной строки, иконку и место в меню «Пуск». #}
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#1f6f5c">
+  <meta name="application-name" content="DE Dojo">
+
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
   {# Всё локальное: ни одного обращения к внешнему хосту, приложение обязано

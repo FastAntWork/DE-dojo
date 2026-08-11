@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DE Dojo">
+  <!-- Тории — ворота додзё. Форма читается и в 16 пикселей на вкладке,
+       и в 512 на плитке приложения, поэтому линии намеренно толстые. -->
+  <rect width="512" height="512" rx="112" fill="#1f6f5c"/>
+  <g fill="none" stroke="#f4fbf8" stroke-width="34" stroke-linecap="round">
+    <path d="M96 168 h320"/>
+    <path d="M120 232 h272"/>
+    <path d="M168 168 v208"/>
+    <path d="M344 168 v208"/>
+  </g>
+  <path d="M78 150 h356 l-24 34 h-308 z" fill="#f4fbf8"/>
+</svg>
