@@ -16,6 +16,7 @@ from pathlib import Path
 from dojo.content.loader import SkillSpec, TaskSpec, load_skills
 from dojo.content.quiz import Quiz, QuizError, parse_quiz
 from dojo.core.logging import get_logger
+from dojo.runner.sql_check import SqlTaskError, SqlTaskFile, parse_task_file
 
 logger = get_logger(__name__)
 
@@ -32,29 +33,53 @@ class ContentIndex:
     repo_root: Path
     skills: dict[str, SkillSpec] = field(default_factory=dict)
     quizzes: dict[str, Quiz] = field(default_factory=dict)
+    sql_tasks: dict[str, SqlTaskFile] = field(default_factory=dict)
 
     def reload(self) -> None:
         skills = load_skills(self.content_root, self.repo_root)
         self.skills = {skill.id: skill for skill in skills}
 
         quizzes: dict[str, Quiz] = {}
-        for skill in skills:
-            task = self.quiz_task(skill)
-            if task is None:
-                continue
-            try:
-                quizzes[skill.id] = parse_quiz(skill.id, self.content_root / task.spec["file"])
-            except QuizError:
-                # Валидатор контента ловит это в CI; здесь молчаливый пропуск
-                # лучше падения приложения из-за одного битого файла.
-                logger.warning("quiz.parse.failed", skill_id=skill.id)
-        self.quizzes = quizzes
+        sql_tasks: dict[str, SqlTaskFile] = {}
 
-        logger.info("content.loaded", skills=len(self.skills), quizzes=len(self.quizzes))
+        for skill in skills:
+            quiz_task = self.quiz_task(skill)
+            if quiz_task is not None:
+                try:
+                    quizzes[skill.id] = parse_quiz(
+                        skill.id, self.content_root / quiz_task.spec["file"]
+                    )
+                except QuizError:
+                    # Валидатор контента ловит это в CI; здесь молчаливый пропуск
+                    # лучше падения приложения из-за одного битого файла.
+                    logger.warning("quiz.parse.failed", skill_id=skill.id)
+
+            sql_task = self.sql_task(skill)
+            if sql_task is not None:
+                try:
+                    sql_tasks[skill.id] = parse_task_file(
+                        skill.id, self.content_root / sql_task.spec["file"]
+                    )
+                except SqlTaskError:
+                    logger.warning("sql_tasks.parse.failed", skill_id=skill.id)
+
+        self.quizzes = quizzes
+        self.sql_tasks = sql_tasks
+
+        logger.info(
+            "content.loaded",
+            skills=len(self.skills),
+            quizzes=len(self.quizzes),
+            sql_tasks=len(self.sql_tasks),
+        )
 
     @staticmethod
     def quiz_task(skill: SkillSpec) -> TaskSpec | None:
         return next((task for task in skill.tasks if task.type == "quiz"), None)
+
+    @staticmethod
+    def sql_task(skill: SkillSpec) -> TaskSpec | None:
+        return next((task for task in skill.tasks if task.type == "sql"), None)
 
     def skill(self, skill_id: str) -> SkillSpec:
         try:

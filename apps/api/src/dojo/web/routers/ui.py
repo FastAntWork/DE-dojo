@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Final
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -21,6 +22,9 @@ from markdown_it import MarkdownIt
 
 from dojo.content.registry import ContentIndex, SkillNotFoundError
 from dojo.core.logging import get_logger
+from dojo.runner.datasets import DatasetError, ensure_dataset, load_dataset
+from dojo.runner.sql_check import SqlTaskError
+from dojo.runner.sql_check import check as sql_check
 from dojo.web.routers.content import (
     QuizSubmission,
     SubmittedAnswer,
@@ -171,6 +175,77 @@ async def quiz_submit(skill_id: str, request: Request, index: IndexDep) -> HTMLR
 
     return templates.TemplateResponse(
         request, "_quiz_result.html", context(request, result=result, items=items)
+    )
+
+
+async def dataset_connection(request: Request, name: str) -> asyncpg.Connection[asyncpg.Record]:
+    """Соединение с базой датасета, при необходимости подготовив её.
+
+    Подготовка ленивая: датасет нужен только тому, кто открыл практику, и
+    грузить его при старте приложения незачем. DSN кешируется — проверка
+    контрольной суммы стоит одного запроса, но и он лишний на каждый ответ.
+    """
+    cache: dict[str, str] = request.app.state.dataset_dsns
+    if name not in cache:
+        index: ContentIndex = request.app.state.content
+        dataset = load_dataset(index.content_root, name)
+        cache[name] = await ensure_dataset(request.app.state.settings.database_url, dataset)
+    return await asyncpg.connect(cache[name])
+
+
+@router.get("/skills/{skill_id}/sql", response_class=HTMLResponse)
+async def sql_page(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    try:
+        skill = index.skill(skill_id)
+    except SkillNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+
+    task_file = index.sql_tasks.get(skill_id)
+    if task_file is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"у узла {skill_id} нет SQL-практики")
+
+    return templates.TemplateResponse(
+        request,
+        "sql.html",
+        context(request, skill=skill, tasks=task_file.tasks, dataset=task_file.dataset),
+    )
+
+
+@router.post("/skills/{skill_id}/sql/{task_id}", response_class=HTMLResponse)
+async def sql_submit(
+    skill_id: str, task_id: str, request: Request, index: IndexDep
+) -> HTMLResponse:
+    task_file = index.sql_tasks.get(skill_id)
+    if task_file is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"у узла {skill_id} нет SQL-практики")
+
+    try:
+        task = task_file.task(task_id)
+    except SqlTaskError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+
+    form = await request.form()
+    answer = str(form.get("answer", ""))
+
+    try:
+        conn = await dataset_connection(request, task_file.dataset)
+    except (OSError, asyncpg.PostgresError, DatasetError) as exc:
+        logger.warning("sql.dataset.unavailable", dataset=task_file.dataset, error=str(exc))
+        return templates.TemplateResponse(
+            request,
+            "_sql_result.html",
+            context(request, task=task, verdict=None, answer=answer),
+        )
+
+    try:
+        verdict = await sql_check(conn, task, answer)
+    finally:
+        await conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "_sql_result.html",
+        context(request, task=task, verdict=verdict, answer=answer),
     )
 
 

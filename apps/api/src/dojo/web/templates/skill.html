@@ -44,6 +44,9 @@
     {% if skill.has_quiz %}
       <a class="btn" href="/skills/{{ skill.id }}/quiz">Пройти квиз</a>
     {% endif %}
+    {% if skill.has_sql %}
+      <a class="btn" href="/skills/{{ skill.id }}/sql">Практика на базе</a>
+    {% endif %}
     <a class="btn secondary" href="/">Вернуться к графу</a>
   </div>
 </main>

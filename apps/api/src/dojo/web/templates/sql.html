@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Практика SQL: {{ skill.title }} — DE Dojo{% endblock %}
+
+{% block main %}
+<main class="reading">
+  <p style="margin:0 0 0.75rem"><a href="/skills/{{ skill.id }}">← к узлу</a></p>
+
+  <h1>Практика: {{ skill.title }}</h1>
+  <p class="lede">
+    {{ tasks | length }} задач на датасете <code>{{ dataset }}</code>.
+    Запрос выполняется на настоящей базе, ответ сверяется с эталоном.
+  </p>
+
+  <details class="notice" style="margin-bottom:2rem">
+    <summary style="cursor:pointer;font-weight:600">Схема датасета</summary>
+    <div class="prose" style="margin-top:0.75rem">
+      <pre><code>customers    (id, name, city, registered, manager_id)
+products     (id, title, category, price)
+orders       (id, customer_id, created_at, status)
+order_items  (order_id, product_id, quantity, price)
+tickets      (id, customer_id, created_at, subject)</code></pre>
+      <p style="font-size:0.9rem;color:var(--text-muted)">
+        Есть клиенты без заказов, заказ без позиций, NULL в городе и в
+        manager_id, статусы <code>new</code>, <code>paid</code>,
+        <code>shipped</code>, <code>cancelled</code>.
+      </p>
+    </div>
+  </details>
+
+  {% for task in tasks %}
+  <div class="question" id="task-{{ task.id }}">
+    <div class="question-number">Задача {{ loop.index }} из {{ tasks | length }}</div>
+    <h3 style="margin:0 0 0.75rem">{{ task.title }}</h3>
+    <div class="question-prompt">{{ task.prompt }}</div>
+
+    <form hx-post="/skills/{{ skill.id }}/sql/{{ task.id }}"
+          hx-target="#result-{{ task.id }}"
+          hx-swap="innerHTML">
+      <textarea class="sql-input"
+                name="answer"
+                rows="7"
+                spellcheck="false"
+                placeholder="SELECT ..."></textarea>
+
+      <div class="actions" style="margin-top:0.75rem">
+        <button class="btn" type="submit">Проверить</button>
+        {% if task.hint %}
+        <button class="btn secondary" type="button"
+                onclick="document.getElementById('hint-{{ task.id }}').hidden = false; this.hidden = true">
+          Показать подсказку
+        </button>
+        {% endif %}
+        <span class="htmx-indicator" style="color:var(--text-muted)">выполняю…</span>
+      </div>
+    </form>
+
+    {% if task.hint %}
+    <div class="notice" id="hint-{{ task.id }}" hidden style="margin-top:0.9rem">
+      {{ task.hint }}
+    </div>
+    {% endif %}
+
+    <div id="result-{{ task.id }}"></div>
+  </div>
+  {% endfor %}
+
+  <div class="actions">
+    <a class="btn secondary" href="/skills/{{ skill.id }}">К теории узла</a>
+    <a class="btn secondary" href="/">К графу</a>
+  </div>
+</main>
+{% endblock %}

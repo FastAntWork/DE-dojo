@@ -1,0 +1,68 @@
+{# Ответ на отправку SQL-задачи. Эталонное решение сюда не попадает никогда:
+   показываются только расхождения, чтобы человек чинил свой запрос сам. #}
+
+{% if verdict is none %}
+  <div class="verdict">
+    <div class="verdict-label bad">База недоступна</div>
+    <div class="verdict-text">
+      Датасет живёт в PostgreSQL, а он сейчас не запущен.
+      <a href="/setup">Что делать</a>.
+    </div>
+  </div>
+
+{% elif verdict.passed %}
+  <div class="verdict">
+    <div class="verdict-label ok">Верно</div>
+    <div class="verdict-text">
+      {% if verdict.seq_scans is not none %}
+        План проверен: последовательных сканов {{ verdict.seq_scans }}.
+      {% else %}
+        Результат совпал с эталоном.
+      {% endif %}
+    </div>
+  </div>
+
+{% else %}
+  <div class="verdict">
+    <div class="verdict-label bad">Не сошлось</div>
+    <div class="verdict-text">{{ verdict.message }}</div>
+
+    {% if verdict.error %}
+    <div class="prose" style="margin-top:0.75rem">
+      <pre><code>{{ verdict.error }}</code></pre>
+    </div>
+    {% endif %}
+
+    {% if verdict.missing_rows %}
+    <div style="margin-top:1rem">
+      <div style="font-weight:600;font-size:0.9rem">Эти строки должны были быть, но их нет:</div>
+      <div class="prose">
+        <table>
+          <thead><tr>{% for c in verdict.expected_columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in verdict.missing_rows %}
+            <tr>{% for value in row %}<td>{{ '∅' if value is none else value }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if verdict.unexpected_rows %}
+    <div style="margin-top:1rem">
+      <div style="font-weight:600;font-size:0.9rem">А этих строк быть не должно:</div>
+      <div class="prose">
+        <table>
+          <thead><tr>{% for c in verdict.actual_columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in verdict.unexpected_rows %}
+            <tr>{% for value in row %}<td>{{ '∅' if value is none else value }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+{% endif %}

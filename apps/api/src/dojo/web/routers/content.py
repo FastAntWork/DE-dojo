@@ -47,6 +47,7 @@ class SkillSummary(BaseModel):
     estimated_hours: float
     prereq: list[str]
     has_quiz: bool
+    has_sql: bool = Field(description="Есть практика на настоящей базе")
     theory_ready: bool = Field(description="Теория написана, а не заглушка")
 
 
@@ -119,6 +120,7 @@ def _summary(index: ContentIndex, skill_id: str) -> SkillSummary:
         estimated_hours=skill.estimated_hours,
         prereq=[pid for pid, hard in skill.prereq if hard],
         has_quiz=skill.id in index.quizzes,
+        has_sql=skill.id in index.sql_tasks,
         theory_ready=not index.is_stub_theory(skill.id),
     )
 

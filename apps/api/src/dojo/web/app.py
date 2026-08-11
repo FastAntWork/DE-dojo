@@ -46,6 +46,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # перезапуска контейнера, без пересборки образа.
         content_root = settings.content_dir or find_content_root()
         app.state.content = load_index(content_root, content_root.parent)
+        # Базы учебных датасетов готовятся лениво, при первом обращении к
+        # практике: большинству занятий они не нужны вовсе.
+        app.state.dataset_dsns = {}
 
         # Падать на старте из-за недоступной БД нельзя: `docker compose up`
         # стал бы гонкой за порядок готовности контейнеров. Незаполненный

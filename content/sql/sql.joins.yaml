@@ -1,0 +1,85 @@
+# Задачи к узлу sql.joins на датасете shop.
+#
+# Эталонное решение не отдаётся клиенту: ожидаемый результат вычисляется на
+# сервере запуском solution, а ответ пользователя сравнивается с ним. Поэтому
+# датасет можно менять, не переписывая ожидаемые строки руками.
+
+dataset: shop
+
+tasks:
+  - id: joins-customers-without-orders
+    title: "Клиенты без единого заказа"
+    prompt: |
+      Выведи id и имя клиентов, которые не сделали ни одного заказа.
+      Колонки: id, name. Порядок не важен.
+    solution: |
+      SELECT c.id, c.name
+      FROM customers c
+      WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+    ordered: false
+    hint: "Anti-join. NOT IN здесь опасен, если в подзапросе может оказаться NULL."
+
+  - id: joins-paid-orders-per-customer
+    title: "Оплаченные заказы по каждому клиенту"
+    prompt: |
+      Для КАЖДОГО клиента выведи id, имя и число заказов со статусом 'paid'.
+      Клиенты без оплаченных заказов должны попасть в результат с нулём.
+      Колонки: id, name, paid_orders. Порядок не важен.
+    solution: |
+      SELECT c.id, c.name, count(o.id) AS paid_orders
+      FROM customers c
+      LEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'paid'
+      GROUP BY c.id, c.name
+    ordered: false
+    hint: |
+      Условие на статус нельзя ставить в WHERE — оно превратит LEFT JOIN в
+      INNER и выбросит клиентов без оплаченных заказов.
+
+  - id: joins-orders-without-items
+    title: "Заказы без позиций"
+    prompt: |
+      Найди заказы, в которых нет ни одной позиции.
+      Колонки: id. Порядок не важен.
+    solution: |
+      SELECT o.id
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE oi.order_id IS NULL
+    ordered: false
+    hint: "LEFT JOIN плюс проверка на NULL по правой стороне."
+
+  - id: joins-orders-and-tickets
+    title: "Клиенты и с заказами, и с обращениями"
+    prompt: |
+      Выведи id и имя клиентов, у которых есть хотя бы один заказ И хотя бы
+      одно обращение в поддержку. Каждый клиент — ровно одной строкой.
+      Колонки: id, name. Порядок не важен.
+    solution: |
+      SELECT c.id, c.name
+      FROM customers c
+      WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+        AND EXISTS (SELECT 1 FROM tickets t WHERE t.customer_id = c.id)
+    ordered: false
+    hint: |
+      Соединение обеих веток напрямую даст декартово произведение: у клиента
+      с двумя заказами и двумя обращениями получится четыре строки.
+
+  - id: joins-revenue-per-customer
+    title: "Выручка по оплаченным заказам"
+    prompt: |
+      Для каждого клиента посчитай выручку по заказам со статусом 'paid':
+      сумму quantity * price по всем позициям таких заказов.
+      Клиенты без оплаченных заказов должны получить 0.
+      Колонки: id, name, revenue. Порядок не важен.
+    solution: |
+      SELECT c.id,
+             c.name,
+             coalesce(sum(oi.quantity * oi.price), 0) AS revenue
+      FROM customers c
+      LEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'paid'
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      GROUP BY c.id, c.name
+    ordered: false
+    hint: |
+      Две ловушки сразу: фильтр статуса в ON, а не в WHERE, и coalesce —
+      иначе у клиентов без заказов будет NULL вместо нуля.

@@ -301,6 +301,28 @@ h3 { font-size: 1.08rem; margin: 1.75rem 0 0.5rem; }
 .option.correct { border-color: var(--ok); background: var(--ok-soft); }
 .option.chosen-wrong { border-color: var(--bad); background: var(--bad-soft); }
 
+/* Поле для SQL. Моноширинный шрифт и табуляция в два пробела — писать
+   запрос в поле для комментариев неудобно настолько, что это влияет на то,
+   станет человек решать задачу или закроет вкладку. */
+.sql-input {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  tab-size: 2;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  color: var(--text);
+  resize: vertical;
+}
+.sql-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
 .verdict { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .verdict-label { font-weight: 600; margin-bottom: 0.5rem; }
 .verdict-label.ok { color: var(--ok); }
