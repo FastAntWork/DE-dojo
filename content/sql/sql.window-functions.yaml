@@ -1,0 +1,104 @@
+# Задачи к узлу sql.window-functions.
+#
+# Ключевая ловушка узла — рамка по умолчанию — вынесена в отдельную задачу:
+# без явного frame функция «последнее значение» возвращает текущую строку,
+# и заметить это на глаз почти невозможно.
+
+dataset: shop
+
+tasks:
+  - id: window-rank-products-in-category
+    title: "Место товара по цене внутри категории"
+    prompt: |
+      Для каждого товара выведи название, категорию, цену и его номер по
+      убыванию цены внутри своей категории. Самый дорогой в категории — номер 1.
+      Колонки: title, category, price, rank. Порядок важен: по категории,
+      затем по номеру.
+    solution: |
+      SELECT title,
+             category,
+             price,
+             row_number() OVER (PARTITION BY category ORDER BY price DESC) AS rank
+      FROM products
+      ORDER BY category, rank
+    ordered: true
+    hint: "PARTITION BY задаёт границы окна, ORDER BY внутри OVER — порядок в нём."
+
+  - id: window-running-total
+    title: "Накопительный итог по заказам клиента"
+    prompt: |
+      Для клиента с id = 1 выведи его заказы в порядке даты, стоимость каждого
+      и накопительную сумму стоимостей. Заказы без позиций не учитывай.
+      Колонки: id, total, running. Порядок важен: по дате заказа.
+    solution: |
+      SELECT o.id,
+             sum(oi.quantity * oi.price) AS total,
+             sum(sum(oi.quantity * oi.price)) OVER (ORDER BY min(o.created_at)) AS running
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.customer_id = 1
+      GROUP BY o.id
+      ORDER BY min(o.created_at)
+    ordered: true
+    hint: |
+      Оконная функция вычисляется ПОСЛЕ группировки, поэтому её аргументом
+      может быть агрегат.
+
+  - id: window-share-of-category
+    title: "Доля товара в цене категории"
+    prompt: |
+      Для каждого товара выведи название, категорию и его долю в суммарной
+      цене товаров этой категории, округлённую до трёх знаков.
+      Колонки: title, category, share. Порядок важен: по категории, затем
+      по убыванию доли.
+    solution: |
+      SELECT title,
+             category,
+             round(price / sum(price) OVER (PARTITION BY category), 3) AS share
+      FROM products
+      ORDER BY category, share DESC
+    ordered: true
+    hint: |
+      Окно не схлопывает строки: рядом с каждой строкой доступен агрегат по
+      всей её группе.
+
+  - id: window-previous-order
+    title: "Дней с прошлого заказа"
+    prompt: |
+      Для каждого заказа клиента с id = 2 выведи id, дату и сколько целых дней
+      прошло с предыдущего его заказа. У первого заказа значение пустое.
+      Колонки: id, created_at, days_since_prev. Порядок важен: по дате.
+    solution: |
+      SELECT id,
+             created_at,
+             extract(day FROM created_at - lag(created_at) OVER (ORDER BY created_at))::integer
+                 AS days_since_prev
+      FROM orders
+      WHERE customer_id = 2
+      ORDER BY created_at
+    ordered: true
+    hint: "lag() смотрит на предыдущую строку окна; у первой строки её нет."
+
+  - id: window-last-value-frame
+    title: "Последняя цена товара в категории"
+    prompt: |
+      Для каждого товара выведи название, категорию и цену САМОГО ДОРОГОГО
+      товара его категории, полученную функцией last_value с сортировкой по
+      возрастанию цены.
+      Колонки: title, category, top_price. Порядок важен: по категории,
+      затем по названию.
+
+      Осторожно: без явно заданной рамки last_value вернёт цену текущей строки.
+    solution: |
+      SELECT title,
+             category,
+             last_value(price) OVER (
+                 PARTITION BY category ORDER BY price
+                 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+             ) AS top_price
+      FROM products
+      ORDER BY category, title
+    ordered: true
+    hint: |
+      Как только в OVER появляется ORDER BY, включается рамка по умолчанию,
+      заканчивающаяся на текущей строке. Её надо переопределить явно.

@@ -36,6 +36,16 @@ CREATE TABLE order_items (
     PRIMARY KEY (order_id, product_id)
 );
 
+-- Сотрудники со ссылкой на самих себя: без иерархии не поставить ни задачу
+-- на рекурсивный CTE, ни на self-join.
+CREATE TABLE employees (
+    id         integer PRIMARY KEY,
+    name       text NOT NULL,
+    manager_id integer REFERENCES employees(id),
+    hired      date NOT NULL,
+    salary     numeric(10,2) NOT NULL
+);
+
 CREATE TABLE tickets (
     id          integer PRIMARY KEY,
     customer_id integer NOT NULL REFERENCES customers(id),

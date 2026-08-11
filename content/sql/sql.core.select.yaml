@@ -1,0 +1,62 @@
+# Задачи к узлу sql.core.select. Первый контакт с настоящей базой, поэтому
+# задачи короткие, а ловушки — те же, что в теории: NULL, порядок вычисления,
+# недетерминированная сортировка.
+
+dataset: shop
+
+tasks:
+  - id: select-moscow-customers
+    title: "Клиенты из Москвы"
+    prompt: |
+      Выведи id и имя клиентов из Москвы.
+      Колонки: id, name. Порядок не важен.
+    solution: |
+      SELECT id, name FROM customers WHERE city = 'Москва'
+    ordered: false
+
+  - id: select-customers-without-city
+    title: "Клиенты без города"
+    prompt: |
+      Выведи id и имя клиентов, у которых город не заполнен.
+      Колонки: id, name. Порядок не важен.
+    solution: |
+      SELECT id, name FROM customers WHERE city IS NULL
+    ordered: false
+    hint: "Сравнение city = NULL не вернёт ничего никогда: оно даёт unknown."
+
+  - id: select-expensive-products
+    title: "Товары дороже двух тысяч"
+    prompt: |
+      Выведи название и цену товаров дороже 2000, начиная с самого дорогого.
+      Колонки: title, price. Порядок важен.
+    solution: |
+      SELECT title, price
+      FROM products
+      WHERE price > 2000
+      ORDER BY price DESC
+    ordered: true
+
+  - id: select-distinct-categories
+    title: "Категории товаров"
+    prompt: |
+      Выведи список категорий товаров без повторов.
+      Колонка: category. Порядок не важен.
+    solution: |
+      SELECT DISTINCT category FROM products
+    ordered: false
+
+  - id: select-alias-in-order-by
+    title: "Стоимость позиций заказа"
+    prompt: |
+      Для каждой позиции заказа 101 выведи id товара и стоимость позиции
+      (quantity умножить на price) под именем total, начиная с самой дорогой.
+      Колонки: product_id, total. Порядок важен.
+    solution: |
+      SELECT product_id, quantity * price AS total
+      FROM order_items
+      WHERE order_id = 101
+      ORDER BY total DESC
+    ordered: true
+    hint: |
+      Псевдоним total доступен в ORDER BY, потому что сортировка выполняется
+      после вычисления списка SELECT. В WHERE он был бы недоступен.

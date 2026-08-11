@@ -1,0 +1,99 @@
+# Задачи к узлу sql.subqueries-cte. Иерархия сотрудников в датасете нужна
+# именно здесь: без неё рекурсивный обход поставить не на чем.
+
+dataset: shop
+
+tasks:
+  - id: cte-never-ordered-products
+    title: "Товары, которые ни разу не заказывали"
+    prompt: |
+      Выведи id и название товаров, отсутствующих во всех заказах.
+      Колонки: id, title. Порядок не важен.
+    solution: |
+      SELECT p.id, p.title
+      FROM products p
+      WHERE NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.product_id = p.id)
+    ordered: false
+    hint: "NOT EXISTS безопаснее NOT IN: последний ломается о NULL в подзапросе."
+
+  - id: cte-above-average-order
+    title: "Заказы дороже среднего"
+    prompt: |
+      Посчитай стоимость каждого заказа и выведи те, что дороже средней
+      стоимости заказа. Стоимость — сумма quantity * price по позициям.
+      Заказы без позиций не учитывай.
+      Колонки: id, total. Порядок важен: по убыванию стоимости.
+    solution: |
+      WITH totals AS (
+          SELECT o.id, sum(oi.quantity * oi.price) AS total
+          FROM orders o
+          JOIN order_items oi ON oi.order_id = o.id
+          GROUP BY o.id
+      )
+      SELECT id, total
+      FROM totals
+      WHERE total > (SELECT avg(total) FROM totals)
+      ORDER BY total DESC
+    ordered: true
+    hint: |
+      CTE считается один раз и переиспользуется дважды — в выборке и в
+      подзапросе со средним.
+
+  - id: cte-recursive-hierarchy
+    title: "Все подчинённые руководителя"
+    prompt: |
+      Выведи всех сотрудников, находящихся в подчинении у сотрудника с id = 2,
+      на любом уровне вложенности, вместе с глубиной вложенности.
+      Прямой подчинённый имеет глубину 1.
+      Колонки: id, name, depth. Порядок важен: по глубине, затем по id.
+    solution: |
+      WITH RECURSIVE subordinates AS (
+          SELECT e.id, e.name, 1 AS depth
+          FROM employees e
+          WHERE e.manager_id = 2
+
+          UNION ALL
+
+          SELECT e.id, e.name, s.depth + 1
+          FROM employees e
+          JOIN subordinates s ON e.manager_id = s.id
+      )
+      SELECT id, name, depth
+      FROM subordinates
+      ORDER BY depth, id
+    ordered: true
+    hint: |
+      Якорная часть — прямые подчинённые. Рекурсивная присоединяет к уже
+      найденным их собственных подчинённых.
+
+  - id: cte-self-join-manager
+    title: "Сотрудник и его начальник"
+    prompt: |
+      Для каждого сотрудника выведи его имя и имя непосредственного
+      начальника. У кого начальника нет — тоже должен попасть в результат,
+      с пустым значением.
+      Колонки: name, manager. Порядок важен: по имени сотрудника.
+    solution: |
+      SELECT e.name, m.name AS manager
+      FROM employees e
+      LEFT JOIN employees m ON m.id = e.manager_id
+      ORDER BY e.name
+    ordered: true
+    hint: "Self-join: одна и та же таблица под двумя разными псевдонимами."
+
+  - id: cte-correlated-last-order
+    title: "Дата последнего заказа клиента"
+    prompt: |
+      Для каждого клиента выведи дату его последнего заказа. Клиенты без
+      заказов должны попасть в результат с пустым значением.
+      Колонки: id, name, last_order. Порядок важен: по id.
+    solution: |
+      SELECT c.id,
+             c.name,
+             (SELECT max(o.created_at) FROM orders o WHERE o.customer_id = c.id) AS last_order
+      FROM customers c
+      ORDER BY c.id
+    ordered: true
+    hint: |
+      Коррелированный подзапрос вычисляется для каждой строки внешнего
+      запроса. То же самое можно собрать через LEFT JOIN с группировкой.

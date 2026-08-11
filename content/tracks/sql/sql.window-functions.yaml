@@ -23,4 +23,9 @@ tasks:
     file: quizzes/sql.window-functions.yaml
     difficulty: 0.6
 
+  - type: sql
+    file: sql/sql.window-functions.yaml
+    dataset: shop
+    difficulty: 0.65
+
 review_after_days: [1, 4, 12, 30]

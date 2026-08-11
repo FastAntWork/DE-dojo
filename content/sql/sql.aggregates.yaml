@@ -1,0 +1,79 @@
+# Задачи к узлу sql.aggregates. Каждая проверяет одну из ловушек теории:
+# NULL в агрегатах, разницу WHERE и HAVING, условную агрегацию.
+
+dataset: shop
+
+tasks:
+  - id: agg-orders-by-status
+    title: "Заказы по статусам"
+    prompt: |
+      Посчитай количество заказов в каждом статусе, начиная с самого частого.
+      При равенстве — по названию статуса по возрастанию.
+      Колонки: status, orders. Порядок важен.
+    solution: |
+      SELECT status, count(*) AS orders
+      FROM orders
+      GROUP BY status
+      ORDER BY orders DESC, status
+    ordered: true
+    hint: |
+      Второй ключ сортировки нужен, чтобы результат был определён: при равных
+      количествах порядок иначе произволен.
+
+  - id: agg-count-star-vs-column
+    title: "Сколько клиентов и у скольких заполнен город"
+    prompt: |
+      Одним запросом выведи общее число клиентов и число клиентов с
+      заполненным городом.
+      Колонки: total, with_city. Порядок не важен.
+    solution: |
+      SELECT count(*) AS total, count(city) AS with_city
+      FROM customers
+    ordered: false
+    hint: "count(колонка) считает только непустые значения, count(*) — строки."
+
+  - id: agg-avg-price-by-category
+    title: "Средняя цена по категориям"
+    prompt: |
+      Для каждой категории выведи среднюю цену товара, округлённую до двух
+      знаков, по убыванию средней цены.
+      Колонки: category, avg_price. Порядок важен.
+    solution: |
+      SELECT category, round(avg(price), 2) AS avg_price
+      FROM products
+      GROUP BY category
+      ORDER BY avg_price DESC
+    ordered: true
+
+  - id: agg-having-multiple-products
+    title: "Категории с несколькими товарами"
+    prompt: |
+      Выведи категории, в которых больше одного товара, и количество товаров
+      в них.
+      Колонки: category, products. Порядок не важен.
+    solution: |
+      SELECT category, count(*) AS products
+      FROM products
+      GROUP BY category
+      HAVING count(*) > 1
+    ordered: false
+    hint: "Условие на агрегат — это HAVING: в WHERE его ещё не существует."
+
+  - id: agg-filter-paid
+    title: "Всего заказов и сколько оплачено"
+    prompt: |
+      Для каждого клиента выведи общее число заказов и число оплаченных
+      (статус 'paid'). Клиенты без заказов должны попасть в результат с нулями.
+      Колонки: id, name, total, paid. Порядок не важен.
+    solution: |
+      SELECT c.id,
+             c.name,
+             count(o.id) AS total,
+             count(o.id) FILTER (WHERE o.status = 'paid') AS paid
+      FROM customers c
+      LEFT JOIN orders o ON o.customer_id = c.id
+      GROUP BY c.id, c.name
+    ordered: false
+    hint: |
+      FILTER считает второй показатель за тот же проход. Через CASE тоже можно,
+      но читается хуже.

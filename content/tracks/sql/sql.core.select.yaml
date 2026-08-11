@@ -22,4 +22,9 @@ tasks:
     file: quizzes/sql.core.select.yaml
     difficulty: 0.2
 
+  - type: sql
+    file: sql/sql.core.select.yaml
+    dataset: shop
+    difficulty: 0.3
+
 review_after_days: [1, 4, 12, 30]

@@ -22,4 +22,9 @@ tasks:
     file: quizzes/sql.subqueries-cte.yaml
     difficulty: 0.5
 
+  - type: sql
+    file: sql/sql.subqueries-cte.yaml
+    dataset: shop
+    difficulty: 0.55
+
 review_after_days: [1, 4, 12, 30]
