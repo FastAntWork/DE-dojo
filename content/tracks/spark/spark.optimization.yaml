@@ -1,0 +1,27 @@
+id: spark.optimization
+title: "Spark: shuffle, перекос данных, broadcast join"
+track: spark
+level: 5
+phase: 4
+estimated_hours: 10
+prereq: [spark.core]
+job_tags: [spark, pyspark, performance, bigdata]
+
+objectives:
+  - "Опознать перекос данных по симптомам в интерфейсе Spark и назвать причину"
+  - "Назвать три способа лечения перекоса и цену каждого"
+  - "Объяснить, когда broadcast join применим и почему он не всегда возможен"
+  - "Прочитать метрики стадии и понять, где именно теряется время"
+  - "Отличить нехватку памяти исполнителя от разлива на диск и лечить каждое своим способом"
+  - "Назвать порядок действий при разборе медленной джобы"
+
+theory:
+  read: theory/spark/spark.optimization.md
+  rag_scope: [spark-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/spark.optimization.yaml
+    difficulty: 0.8
+
+review_after_days: [1, 4, 12, 30]

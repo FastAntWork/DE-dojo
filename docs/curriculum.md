@@ -54,7 +54,7 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 | `sql.query-plans` | `sql.window-functions`, `pg.basics` | есть |
 | `pg.indexes` | `sql.query-plans` | **новый** — B-tree, hash, GIN, покрывающие, селективность |
 | `pg.partitioning` | `pg.indexes` | **новый** — секционирование, pruning |
-| `dwh.normal-forms` | `sql.joins` | **новый** — 1НФ–3НФ, когда денормализовать |
+| `dwh.normal-forms` | `sql.joins` | есть |
 
 Блок «Оптимизация» роадмапа (хеш-таблицы, индексы, партиции, дистрибуция)
 разложен между `pg.indexes`, `pg.partitioning` и `mpp.greenplum`.
@@ -65,25 +65,25 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 
 | Узел | Предпосылки | Статус |
 |---|---|---|
-| `dwh.concepts` | `dwh.normal-forms` | **новый** — DWH, Data Lake, LakeHouse; слои |
-| `dwh.star-schema` | `dwh.concepts` | **новый** — звезда, снежинка, факты и измерения |
-| `dwh.data-vault` | `dwh.star-schema` | **новый** — хабы, линки, сателлиты; когда оправдан |
-| `dwh.scd` | `dwh.star-schema` | **новый** — медленно меняющиеся измерения, типы 1/2/3 |
-| `storage.formats` | `dwh.concepts` | **новый** — Parquet, колоночное хранение, S3, Iceberg |
+| `dwh.concepts` | `dwh.normal-forms` | есть |
+| `dwh.star-schema` | `dwh.concepts` | есть |
+| `dwh.data-vault` | `dwh.star-schema` | есть |
+| `dwh.scd` | `dwh.star-schema` | есть |
+| `storage.formats` | `dwh.concepts` | есть |
 | `clickhouse.basics` | `sql.query-plans`, `storage.formats` | **новый** — MergeTree, партиции, материализованные вьюхи |
-| `mpp.greenplum` | `pg.partitioning`, `dwh.star-schema` | **новый** — MPP, дистрибуция, шардирование, перекос |
+| `mpp.greenplum` | `sql.query-plans`, `dwh.star-schema` | есть — предпосылка `pg.partitioning` заменена на `sql.query-plans` до её появления |
 
 ## Фаза 4. Обработка и оркестрация (недели 15–22)
 
 | Узел | Предпосылки | Статус |
 |---|---|---|
-| `spark.core` | `python.data`, `storage.formats` | **новый** — DataFrame, ленивость, план выполнения |
-| `spark.optimization` | `spark.core` | **новый** — shuffle, перекос, broadcast join, партиционирование |
-| `airflow.core` | `python.data`, `docker.basics` | **новый** — DAG, операторы, расписания |
-| `airflow.idempotency` | `airflow.core` | **новый** — идемпотентность, backfill, повторный запуск |
-| `dbt.core` | `dwh.star-schema`, `sql.subqueries-cte` | **новый** — модели, тесты, инкрементальность |
-| `data-quality.checks` | `dbt.core`, `airflow.idempotency` | **новый** — Great Expectations, Soda, dbt tests, контракты |
-| `data-quality.incidents` | `data-quality.checks` | **новый** — карантин, разбор расхождений, восстановление |
+| `spark.core` | `python.core`, `storage.formats` | есть — предпосылка `python.data` заменена на `python.core` до её появления |
+| `spark.optimization` | `spark.core` | есть |
+| `airflow.core` | `python.core` | есть — предпосылки `python.data` и `docker.basics` заменены до их появления |
+| `airflow.idempotency` | `airflow.core` | есть |
+| `dbt.core` | `dwh.star-schema`, `sql.subqueries-cte` | есть |
+| `data-quality.checks` | `dbt.core`, `airflow.idempotency` | есть |
+| `data-quality.incidents` | `data-quality.checks` | есть |
 | `api.integration` | `python.data` | **новый** — REST, пагинация, ретраи, лимиты |
 
 Data Quality добавлен по итогам разбора вакансий: встречается в 63% и почти
@@ -131,9 +131,17 @@ Quality. Предмет остаётся — меняется очерёднос
 
 ## Чего эта карта пока не учитывает
 
-Порядок построен по одному роадмапу. **Текст пяти целевых вакансий так и не
-разобран** — ссылки с hh к моменту составления протухли. Пока это не сделано,
-приоритеты остаются обоснованными чужим мнением, а не твоим рынком.
+Приоритеты построены по роадмапу и по частотам из восьми разобранных описаний
+вакансий (`docs/vacancy-analysis.md`). Из этого разбора и появился блок Data
+Quality, которого не было ни в ТЗ, ни в роадмапе.
 
-Как только появится текст вакансий, частоты по темам считаются честно, и
-`job_weight` на узлах перестаёт быть нулём. Это работа M7, выполненная руками.
+Что остаётся незакрытым:
+
+- **Восемь вакансий — небольшая выборка.** Частоты по ней указывают
+  направление, но не дают точных весов. `job_weight` на узлах по-прежнему ноль.
+- **Четыре узла первой фазы не построены**: `python.data`, `git.basics`,
+  `linux.terminal`, `docker.basics`. Узлы, которые должны были на них
+  опираться, временно опираются на ближайшие существующие — это отмечено в
+  таблицах выше.
+- **Не построены** `pg.indexes`, `pg.partitioning`, `clickhouse.basics`,
+  `api.integration`, `ci.github-actions`, `testing.integration`.

@@ -20,8 +20,8 @@
     },
     "id": {
       "type": "string",
-      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",
-      "description": "Точечный идентификатор: sql.window-functions, kafka.consumer-groups."
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+$",
+      "description": "Точечный идентификатор: sql.window-functions, data-quality.checks. Дефис допустим в любом сегменте, включая первый: имя трека может быть составным. Запрещены только висящие дефисы и пустые сегменты."
     },
     "title": { "type": "string", "minLength": 3 },
     "track": {
@@ -37,14 +37,14 @@
     "estimated_hours": { "type": "number", "exclusiveMinimum": 0, "maximum": 40 },
     "prereq": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" },
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+$" },
       "uniqueItems": true,
       "default": []
     },
     "soft_prereq": {
       "type": "array",
       "description": "Желательные, но не блокирующие выдачу узла планировщиком.",
-      "items": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" },
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)+$" },
       "uniqueItems": true,
       "default": []
     },

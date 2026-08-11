@@ -1,0 +1,27 @@
+id: spark.core
+title: "Spark: DataFrame, ленивость, план выполнения"
+track: spark
+level: 4
+phase: 4
+estimated_hours: 10
+prereq: [python.core, storage.formats]
+job_tags: [spark, pyspark, etl, bigdata, python]
+
+objectives:
+  - "Объяснить разницу трансформации и действия и предсказать, когда код реально начнёт считать"
+  - "Назвать роли драйвера и исполнителей и сказать, что происходит при collect() на большом наборе"
+  - "Прочитать план выполнения и найти в нём обмен данными между узлами"
+  - "Отличить узкую трансформацию от широкой и назвать примеры каждой"
+  - "Объяснить, зачем нужен cache, и назвать случай, когда он вредит"
+  - "Сказать, чем DataFrame выгоднее RDD и почему UDF на Python дороже встроенной функции"
+
+theory:
+  read: theory/spark/spark.core.md
+  rag_scope: [spark-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/spark.core.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

@@ -1,0 +1,27 @@
+id: data-quality.checks
+title: "Качество данных: проверки и контракты"
+track: data-quality
+level: 4
+phase: 4
+estimated_hours: 8
+prereq: [dbt.core, airflow.idempotency]
+job_tags: [data-quality, dbt, airflow, great-expectations, etl]
+
+objectives:
+  - "Назвать шесть измерений качества данных и придумать проверку под каждое"
+  - "Выбрать место проверки в пайплайне и обосновать выбор"
+  - "Отличить проверку, останавливающую загрузку, от предупреждающей, и решить, какая нужна"
+  - "Написать проверку на аномалию объёма, не дающую ложных срабатываний по выходным"
+  - "Объяснить, что такое контракт данных и какую проблему он решает"
+  - "Назвать причину, по которой набор проверок деградирует со временем, и как этому мешать"
+
+theory:
+  read: theory/data-quality/data-quality.checks.md
+  rag_scope: [dbt-docs, great-expectations-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/data-quality.checks.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

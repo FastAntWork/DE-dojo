@@ -1,0 +1,27 @@
+id: data-quality.incidents
+title: "Инциденты с данными: разбор, карантин, восстановление"
+track: data-quality
+level: 4
+phase: 4
+estimated_hours: 6
+prereq: [data-quality.checks]
+job_tags: [data-quality, etl, airflow, on-call]
+
+objectives:
+  - "Назвать порядок действий при обнаружении расхождения в витрине"
+  - "Объяснить, что такое карантин данных и чем он лучше немедленного исправления"
+  - "Найти источник расхождения, двигаясь по слоям, а не угадывая"
+  - "Оценить масштаб: кто уже прочитал испорченные данные и что с этим делать"
+  - "Провести пересчёт истории и объяснить, почему он не всегда возможен"
+  - "Сформулировать вывод инцидента так, чтобы он превратился в проверку"
+
+theory:
+  read: theory/data-quality/data-quality.incidents.md
+  rag_scope: []
+
+tasks:
+  - type: quiz
+    file: quizzes/data-quality.incidents.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

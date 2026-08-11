@@ -1,0 +1,27 @@
+id: mpp.greenplum
+title: "MPP и Greenplum: дистрибуция, перекос, партиционирование"
+track: mpp
+level: 4
+phase: 3
+estimated_hours: 8
+prereq: [sql.query-plans, dwh.star-schema]
+job_tags: [greenplum, mpp, postgresql, dwh, sql]
+
+objectives:
+  - "Объяснить, чем MPP отличается от одиночного PostgreSQL и что из этого следует для запросов"
+  - "Выбрать ключ дистрибуции таблицы и обосновать выбор"
+  - "Опознать перекос данных и перекос вычислений и назвать разницу"
+  - "Прочитать в плане Redistribute Motion и Broadcast Motion и сказать, чем они вызваны"
+  - "Отличить дистрибуцию от партиционирования и сказать, зачем нужны обе"
+  - "Выбрать ориентацию хранения и сжатие под тип нагрузки"
+
+theory:
+  read: theory/mpp/mpp.greenplum.md
+  rag_scope: [greenplum-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/mpp.greenplum.yaml
+    difficulty: 0.75
+
+review_after_days: [1, 4, 12, 30]
