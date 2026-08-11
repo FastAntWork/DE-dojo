@@ -54,8 +54,10 @@ def busy_port() -> Iterator[int]:
 
 
 class TestEnvFile:
-    def test_reads_values(self, project: Path) -> None:
-        assert read_env(project)["REDIS_HOST_PORT"] == "6379"
+    def test_reads_values(self, tmp_path: Path) -> None:
+        (tmp_path / ".env").write_text("REDIS_HOST_PORT=6379\n", encoding="utf-8")
+
+        assert read_env(tmp_path)["REDIS_HOST_PORT"] == "6379"
 
     def test_ignores_comments_and_blanks(self, tmp_path: Path) -> None:
         (tmp_path / ".env").write_text("# коммент\n\nA=1\n", encoding="utf-8")
@@ -63,12 +65,14 @@ class TestEnvFile:
         assert read_env(tmp_path) == {"A": "1"}
 
     def test_updates_existing_key_in_place(self, project: Path) -> None:
-        set_env_value(project, "REDIS_HOST_PORT", "6380")
+        untouched = read_env(project)["POSTGRES_HOST_PORT"]
+
+        set_env_value(project, "REDIS_HOST_PORT", "16380")
 
         env = read_env(project)
-        assert env["REDIS_HOST_PORT"] == "6380"
-        # Остальные значения не должны пострадать.
-        assert env["POSTGRES_HOST_PORT"] == "5432"
+        assert env["REDIS_HOST_PORT"] == "16380"
+        # Соседние строки правка одного ключа задевать не должна.
+        assert env["POSTGRES_HOST_PORT"] == untouched
 
     def test_appends_missing_key(self, project: Path) -> None:
         set_env_value(project, "NEW_KEY", "42")
