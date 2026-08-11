@@ -1,0 +1,60 @@
+# Корпус целевых вакансий, собранный вручную в августе 2026.
+#
+# Источник истины для перевзвешивания графа до появления парсера (M7). Хранится
+# в репозитории, чтобы анализ был воспроизводим: цифры в docs/vacancy-analysis.md
+# должны пересчитываться из этого файла, а не браться из головы.
+#
+# Требования выписаны тезисами, а не дословно: для подсчёта частот нужен состав
+# требований, а не формулировки работодателя.
+
+collected_at: 2026-08-11
+source: hh.ru
+count: 8
+
+vacancies:
+  - id: v1-etl-dwh
+    focus: "Классический DWH-инженер"
+    requirements: [sql, clickhouse, greenplum, airflow, etl, elt, python, big-data,
+                   data-quality, monitoring, data-modeling, documentation]
+
+  - id: v2-hadoop-spark
+    focus: "Витрины на Spark в банке"
+    requirements: [sql, window-functions, git, bash, python, scala, java, hadoop,
+                   spark, spark-optimization, etl, elt, oozie, eda, code-review]
+
+  - id: v3-bigdata-platform
+    focus: "Платформа больших данных"
+    requirements: [sql, query-optimization, postgresql, greenplum, clickhouse, hive,
+                   airflow, nifi, hadoop, spark, spark-optimization, python,
+                   data-quality, data-marts, documentation]
+
+  - id: v4-ml-data
+    focus: "Данные для обучения VLM-моделей"
+    requirements: [python, pandas, numpy, pipelines, data-quality, reproducibility,
+                   docker, linux, git, ml, dvc, mlflow, llm]
+
+  - id: v5-analytics-platform
+    focus: "Аналитическая платформа"
+    requirements: [clickhouse, sql, kafka, airflow, python, greenplum, etl, elt,
+                   dwh, data-lake, data-architecture]
+
+  - id: v6-greenplum-dbt
+    focus: "DWH на Greenplum с dbt и Data Vault"
+    requirements: [sql, window-functions, cte, query-plans, greenplum, mpp,
+                   postgresql, clickhouse, airflow, dbt, data-vault, data-marts,
+                   staging, soda, data-quality, git, data-modeling, documentation,
+                   incident-analysis]
+
+  - id: v7-spark-hive
+    focus: "ETL и витрины на Spark/Hive"
+    requirements: [python, pandas, fastapi, sql, cte, window-functions,
+                   query-optimization, airflow, postgresql, clickhouse, hadoop,
+                   hive, git, ci-cd, xml, json, dwh, etl, spark, pyspark, docker,
+                   k8s, mlflow, documentation]
+
+  - id: v8-data-quality-mdm
+    focus: "Слои данных, дедупликация, качество"
+    requirements: [sql, dbt, pyspark, pandas, fuzzy-matching, string-algorithms,
+                   data-modeling, normal-forms, data-vault, star-schema,
+                   data-quality, great-expectations, soda, data-contracts,
+                   airflow, dagster, prefect, git, ci-cd]
