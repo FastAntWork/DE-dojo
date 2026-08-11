@@ -60,6 +60,16 @@ class Phase:
     skills: list[Any]
 
 
+def context(request: Request, **extra: Any) -> dict[str, Any]:
+    """Общий контекст шаблонов.
+
+    storage_ready попадает в каждую страницу, потому что плашка «прогресс не
+    сохраняется» живёт в базовом шаблоне: узнать об этом человек должен на
+    любом экране, а не только на том, где полез смотреть историю.
+    """
+    return {"storage_ready": request.app.state.db.is_connected, **extra}
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, index: IndexDep) -> HTMLResponse:
     summaries = [_summary(index, skill_id) for skill_id in index.skills]
@@ -73,11 +83,12 @@ async def index(request: Request, index: IndexDep) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        {
-            "phases": phases,
-            "total": len(summaries),
-            "ready": sum(1 for s in summaries if s.theory_ready),
-        },
+        context(
+            request,
+            phases=phases,
+            total=len(summaries),
+            ready=sum(1 for s in summaries if s.theory_ready),
+        ),
     )
 
 
@@ -101,14 +112,15 @@ async def skill_page(skill_id: str, request: Request, index: IndexDep) -> HTMLRe
     return templates.TemplateResponse(
         request,
         "skill.html",
-        {
-            "skill": {
+        context(
+            request,
+            skill={
                 **detail.model_dump(),
                 "objectives": skill.objectives,
                 "job_tags": skill.job_tags,
             },
-            "theory_html": markdown.render(raw) if raw else None,
-        },
+            theory_html=markdown.render(raw) if raw else None,
+        ),
     )
 
 
@@ -125,7 +137,7 @@ async def quiz_page(skill_id: str, request: Request, index: IndexDep) -> HTMLRes
 
     # S311: перемешивание вариантов, криптостойкость не требуется.
     payload = _public_quiz(quiz.shuffled(random.Random()), skill.title)  # noqa: S311
-    return templates.TemplateResponse(request, "quiz.html", {"quiz": payload})
+    return templates.TemplateResponse(request, "quiz.html", context(request, quiz=payload))
 
 
 @router.post("/skills/{skill_id}/quiz", response_class=HTMLResponse)
@@ -158,7 +170,7 @@ async def quiz_submit(skill_id: str, request: Request, index: IndexDep) -> HTMLR
     ]
 
     return templates.TemplateResponse(
-        request, "_quiz_result.html", {"result": result, "items": items}
+        request, "_quiz_result.html", context(request, result=result, items=items)
     )
 
 
@@ -182,4 +194,16 @@ async def progress(request: Request, index: IndexDep) -> HTMLResponse:
             )
 
     titles = {skill_id: index.skills[skill_id].title for skill_id in index.skills}
-    return templates.TemplateResponse(request, "progress.html", {"rows": rows, "titles": titles})
+    return templates.TemplateResponse(
+        request, "progress.html", context(request, rows=rows, titles=titles)
+    )
+
+
+@router.get("/setup", response_class=HTMLResponse)
+async def setup(request: Request) -> HTMLResponse:
+    """Что не так с окружением и как это починить.
+
+    Отдельная страница, а не текст в консоли: человек, запустивший приложение
+    двойным кликом, консоль не читает.
+    """
+    return templates.TemplateResponse(request, "setup.html", context(request))

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Настройка — DE Dojo{% endblock %}
+
+{% block main %}
+<main class="reading">
+  <h1>Настройка</h1>
+
+  {% if storage_ready %}
+    <div class="notice" style="background:var(--ok-soft);border-color:transparent;color:var(--ok)">
+      <strong>Всё на месте.</strong> База подключена, прогресс сохраняется.
+    </div>
+    <div class="actions">
+      <a class="btn" href="/">К графу</a>
+    </div>
+  {% else %}
+
+  <p class="lede">
+    Приложение работает, но история попыток не сохраняется: не запущен Docker,
+    а в нём живёт база данных.
+  </p>
+
+  <h2 style="margin-top:1.5rem">Что работает прямо сейчас</h2>
+  <ul class="prose">
+    <li>Граф навыков и все узлы</li>
+    <li>Чтение теории</li>
+    <li>Прохождение квизов с разбором</li>
+  </ul>
+
+  <h2>Что появится с Docker</h2>
+  <ul class="prose">
+    <li>История попыток и прогресс по узлам</li>
+    <li>Планировщик повторений — он считает, что и когда повторять</li>
+    <li>Лабораторные стенды: Kafka, ClickHouse, Greenplum</li>
+    <li>Локальная модель-тьютор</li>
+  </ul>
+
+  <h2>Как включить</h2>
+
+  <h3>1. Установи Docker Desktop</h3>
+  <p>
+    <a class="btn" href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener noreferrer">
+      Скачать Docker Desktop →
+    </a>
+  </p>
+  <p style="color:var(--text-muted);font-size:0.94rem">
+    Бесплатен для личного использования. При установке потребуются права
+    администратора и, скорее всего, перезагрузка — Docker включает механизмы
+    виртуализации Windows.
+  </p>
+
+  <h3>2. Запусти его и дождись зелёного значка</h3>
+  <p style="color:var(--text-muted);font-size:0.94rem">
+    Docker Desktop должен быть <strong>запущен</strong>, а не просто установлен.
+    Это самая частая причина того, что приложение по-прежнему не видит базу:
+    значок кита в трее должен перестать мигать.
+  </p>
+
+  <h3>3. Перезапусти Dojo</h3>
+  <div class="prose">
+    <pre><code>uv run dojo start</code></pre>
+  </div>
+  <p style="color:var(--text-muted);font-size:0.94rem">
+    Или просто закрой это окно и запусти <code>Dojo.cmd</code> заново.
+    Первый запуск с Docker займёт несколько минут — скачиваются образы
+    PostgreSQL и Redis, дальше секунды.
+  </p>
+
+  <div class="actions">
+    <a class="btn secondary" href="/">Продолжить без сохранения прогресса</a>
+  </div>
+
+  {% endif %}
+</main>
+{% endblock %}

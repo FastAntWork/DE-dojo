@@ -23,7 +23,9 @@ members = ["apps/api", "apps/cli", "apps/runner"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.6",
+    # Версия закреплена: она же прописана в .pre-commit-config.yaml, и
+    # расхождение превращает хук и `make lint` в двух спорящих судей.
+    "ruff==0.16.2",
     "mypy>=1.11",
     # asyncpg поставляется без py.typed, а mypy strict с disallow_any_unimported
     # превращает любой Connection в Any и роняет проверку.

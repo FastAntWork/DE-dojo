@@ -11,6 +11,7 @@ Dojo. Поэтому оркестрация живёт здесь, а Makefile �
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,39 @@ PROFILE_MEMORY_MB: Final[dict[str, int]] = {
 }
 
 ALL_PROFILES: Final = ("ai", "analytics", "storage")
+
+
+def docker_available() -> tuple[bool, str]:
+    """Работает ли докер. Возвращает (готов, причина).
+
+    Проверяется именно демон, а не наличие бинаря: на Windows CLI ставится
+    вместе с Docker Desktop и остаётся на месте, даже когда сам Desktop не
+    запущен. Ошибка при этом выглядит как «cannot find the file specified»
+    про именованный канал — по ней невозможно догадаться, что надо просто
+    открыть Docker Desktop.
+    """
+    if shutil.which("docker") is None:
+        return False, "docker не установлен"
+
+    try:
+        # Аргументы фиксированные, ввода извне здесь нет — поэтому S603 тут
+        # не срабатывает и подавлять его не нужно, в отличие от compose(),
+        # куда аргументы приходят переменной.
+        result = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False, "docker не отвечает"
+
+    if result.returncode != 0:
+        if "permission denied" in result.stderr.lower():
+            return False, "нет прав на docker: добавь себя в группу docker"
+        return False, "демон docker не запущен"
+    return True, result.stdout.strip()
 
 
 def find_repo_root(start: Path | None = None) -> Path:
@@ -153,8 +187,22 @@ def start(
     """Поднять стек, дождаться готовности, применить миграции и залить контент.
 
     Одна команда вместо четырёх: именно её человек выполняет каждый день.
+
+    Если докера нет, приложение всё равно запускается — без него недоступна
+    только история прогресса. Останавливать человека на пороге из-за того,
+    что он ещё не поставил Docker Desktop, было бы худшим решением: теория и
+    квизы не требуют ни одного контейнера.
     """
     root = repo.resolve() if repo else find_repo_root()
+
+    ready, reason = docker_available()
+    if not ready:
+        console.print(f"\n  [yellow]Docker недоступен: {reason}.[/yellow]")
+        console.print("  Запускаю в ограниченном режиме — теория и квизы работают,")
+        console.print("  прогресс не сохраняется. Что делать, написано в самом приложении.\n")
+        serve(repo=root, port=port, open_window=open_window)
+        return
+
     up(profile=profile, repo=root)
 
     base = f"http://127.0.0.1:{port}"
@@ -195,6 +243,41 @@ def _migrate() -> None:
 
     applied = asyncio.run(migrate(get_settings().database_url))
     console.print(f"  миграции: применено {len(applied)}")
+
+
+@app.command("serve")
+def serve(
+    repo: Annotated[Path | None, typer.Option()] = None,
+    port: Annotated[int, typer.Option(help="Порт, на котором слушать.")] = 8000,
+    open_window: Annotated[bool, typer.Option("--app/--no-app")] = True,
+) -> None:
+    """Запустить приложение прямо здесь, без контейнеров.
+
+    Нужно в двух случаях: когда докера ещё нет и когда правишь код — тогда
+    не приходится пересобирать образ на каждое изменение.
+    """
+    import threading
+
+    import uvicorn
+
+    root = repo.resolve() if repo else find_repo_root()
+    os.environ.setdefault("CONTENT_DIR", str(root / "content"))
+
+    console.print(f"  Приложение: [bold]http://127.0.0.1:{port}[/bold]")
+    console.print("  [dim]остановить — Ctrl+C[/dim]\n")
+
+    if open_window:
+        # Окно открывается с задержкой: сервер должен успеть занять порт,
+        # иначе браузер покажет ошибку соединения и человек решит, что сломано.
+        def open_later() -> None:
+            time.sleep(2.5)
+            from dojo_cli.desktop import launch
+
+            launch(f"http://127.0.0.1:{port}")
+
+        threading.Thread(target=open_later, daemon=True).start()
+
+    uvicorn.run("dojo.web.app:app", host="127.0.0.1", port=port, log_level="warning")
 
 
 @app.command("app")

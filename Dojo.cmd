@@ -22,15 +22,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-where docker >nul 2>nul
-if errorlevel 1 (
-    echo.
-    echo   Не найден docker. Установи Docker Desktop и запусти его:
-    echo   https://www.docker.com/products/docker-desktop/
-    echo.
-    pause
-    exit /b 1
-)
+rem Docker намеренно НЕ обязателен. Без него приложение запустится в
+rem ограниченном режиме — теория и квизы работают, прогресс не сохраняется, —
+rem а что делать дальше, оно расскажет само на странице настройки.
+rem Останавливать человека на пороге здесь незачем.
 
 echo   Готовлю окружение, первый запуск займёт несколько минут...
 call uv sync --all-packages --quiet

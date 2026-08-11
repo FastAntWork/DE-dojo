@@ -29,6 +29,7 @@ app.command("up")(stack.up)
 app.command("down")(stack.down)
 app.command("ps")(stack.ps)
 app.command("app")(stack.open_app)
+app.command("serve")(stack.serve)
 
 console = Console()
 

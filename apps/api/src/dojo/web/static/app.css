@@ -116,6 +116,21 @@ code, pre { font-family: var(--mono); font-size: 0.9em; }
 main { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 main.reading { max-width: 78ch; }
 
+/* ── Плашка настройки ─────────────────────────────────────────────────── */
+
+.setup-banner {
+  background: var(--warn-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 25%, transparent);
+  color: var(--warn);
+}
+.setup-banner-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0.7rem 1.5rem;
+  font-size: 0.92rem;
+}
+.setup-banner a { color: inherit; font-weight: 600; white-space: nowrap; }
+
 /* ── Заголовки ────────────────────────────────────────────────────────── */
 
 h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
