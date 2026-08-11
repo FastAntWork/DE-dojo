@@ -36,7 +36,8 @@
 def test_saves_user(mocker):
     repo = mocker.Mock()
     UserService(repo).register("ivan@example.com")
-    assert repo.save.called          # зелёный, но не проверяет ничего
+    assert repo.save.called  # зелёный, но не проверяет ничего
+
 
 # поведение — хорошо
 def test_saves_user():
@@ -61,9 +62,9 @@ def test_saves_user():
 
 ```python
 def test_chunked_splits_evenly():
-    items = [1, 2, 3, 4]          # подготовка
+    items = [1, 2, 3, 4]  # подготовка
 
-    result = list(chunked(items, 2))   # действие
+    result = list(chunked(items, 2))  # действие
 
     assert result == [[1, 2], [3, 4]]  # проверка
 ```

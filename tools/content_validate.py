@@ -20,12 +20,18 @@ from typing import Any, Final
 import yaml
 from jsonschema import Draft202012Validator
 
-# Контракт лабы из ТЗ: без любого из этих файлов стенд невозможно ни собрать,
-# ни честно проверить.
+# Контракт лабы. Без любого из этих файлов стенд невозможно ни собрать, ни
+# честно проверить.
+#
+# Отличие от ТЗ: вместо docker-compose.yml и seed.sh здесь lab.yaml с типом
+# стенда и seed.N.sql на каждый вариант поломки. Причина в том, что лабе на
+# PostgreSQL свой контейнер не нужен — ей достаточно отдельной базы в уже
+# поднятом экземпляре, а второй PostgreSQL стоил бы гигабайт при бюджете в
+# десять. Лабы с типом стенда compose приносят свой docker-compose.yml, и он
+# проверяется отдельно.
 LAB_REQUIRED: Final = (
-    "docker-compose.yml",
+    "lab.yaml",
     "brief.md",
-    "seed.sh",
     "check.py",
     "hints.yaml",
     "solution.md",
@@ -154,6 +160,7 @@ def validate_references(
                 require_dir_with(task["path"], KATA_REQUIRED, f"{at}: каталог каты")
             case "lab":
                 require_dir_with(task["path"], LAB_REQUIRED, f"{at}: каталог лабы")
+                problems += _validate_lab_variants(content_root, task["path"], rel, at)
             case "review" | "design" | "interview":
                 require_file(task["rubric"], f"{at}: рубрика")
             case "capstone":
@@ -217,6 +224,39 @@ def validate_quizzes(content_root: Path, repo_root: Path) -> list[Problem]:
                         f"{question_id}: kind={kind} требует {expected}, найдено {correct}",
                     )
                 )
+
+    return problems
+
+
+def _validate_lab_variants(content_root: Path, relative: str, rel: Path, at: str) -> list[Problem]:
+    """Каждый заявленный вариант поломки обязан иметь свой seed.
+
+    Иначе лаба с variants: 3 отдаёт человеку вариант, которого нет, и падает
+    уже в момент подготовки стенда — то есть после того, как он её открыл.
+    """
+    directory = content_root / relative
+    meta_path = directory / "lab.yaml"
+    if not meta_path.is_file():
+        return []
+
+    try:
+        meta = yaml.safe_load(meta_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        return [Problem(str(rel), f"{at}: lab.yaml не читается: {exc}")]
+
+    problems: list[Problem] = []
+    stand = str(meta.get("stand", "shared-postgres"))
+    variants = int(meta.get("variants", 1))
+
+    if stand == "compose" and not (directory / "docker-compose.yml").is_file():
+        problems.append(Problem(str(rel), f"{at}: стенд compose требует docker-compose.yml"))
+
+    missing = [n for n in range(1, variants + 1) if not (directory / f"seed.{n}.sql").is_file()]
+    if missing:
+        names = ", ".join(f"seed.{n}.sql" for n in missing)
+        problems.append(
+            Problem(str(rel), f"{at}: объявлено вариантов {variants}, нет файлов: {names}")
+        )
 
     return problems
 

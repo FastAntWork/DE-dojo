@@ -24,9 +24,15 @@ pytestmark = pytest.mark.integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-EXPECTED_SKILLS = 10
-EXPECTED_EDGES = 10
-EXPECTED_TASKS = 10
+# Ожидаемое считается по содержимому каталога, а не задано числами. Первая
+# версия хранила литералы, и после пополнения графа с десяти узлов до
+# пятнадцати тест покраснел на ровном месте: проверяется-то не количество, а
+# то, что в базу уезжает ВЕСЬ граф без потерь. Числа здесь только маскировали
+# бы это утверждение и требовали правки при каждом новом узле.
+CONTENT = load_skills(REPO_ROOT / "content", REPO_ROOT)
+EXPECTED_SKILLS = len(CONTENT)
+EXPECTED_EDGES = sum(len(skill.prereq) for skill in CONTENT)
+EXPECTED_TASKS = sum(len(skill.tasks) for skill in CONTENT)
 
 
 async def connect(dsn: str) -> asyncpg.Connection[asyncpg.Record]:

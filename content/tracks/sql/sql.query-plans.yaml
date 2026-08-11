@@ -26,5 +26,10 @@ tasks:
     file: sql/sql.query-plans.yaml
     dataset: shop-big
     difficulty: 0.75
+  - type: lab
+    path: labs/pg-slow-report
+    variants: 3
+    timeout_min: 45
+    difficulty: 0.8
 
 review_after_days: [1, 4, 12, 30]

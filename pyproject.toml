@@ -84,6 +84,9 @@ ignore = [
 "tools/**"          = ["T20"]
 "apps/cli/**"       = ["T20"]   # CLI обязан печатать
 "content/katas/**"  = ["ALL"]   # это учебный материал, а не код проекта
+# check.py лабы ОБЯЗАН печатать JSON в stdout — это его контракт с раннером,
+# а не забытая отладка. Остальные правила для него работают: он наш код.
+"content/labs/**/check.py" = ["T20"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dojo", "dojo_cli", "runner", "tools"]
