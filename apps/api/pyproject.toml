@@ -16,6 +16,12 @@ dependencies = [
     "orjson>=3.10",
     "PyYAML>=6.0",
     "jsonschema>=4.23",
+    # Шаблоны интерфейса и рендер теории. Оба чистые python-пакеты, никакого
+    # Node и шага сборки — см. docs/adr/0005.
+    "jinja2>=3.1",
+    "markdown-it-py>=3.0",
+    # Разбор данных формы: без него request.form() в FastAPI не работает.
+    "python-multipart>=0.0.9",
 ]
 
 [build-system]

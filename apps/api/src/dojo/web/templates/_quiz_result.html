@@ -1,0 +1,69 @@
+{# Фрагмент, который htmx подставляет вместо содержимого #result.
+   Здесь и только здесь клиент впервые видит правильные ответы и разборы. #}
+
+<h2 id="verdict" style="scroll-margin-top:5rem">Результат</h2>
+
+<div class="score">
+  <div class="score-value {{ 'ok' if result.passed else 'bad' }}">
+    {{ (result.score * 100) | int }}%
+  </div>
+  <div>
+    <div style="font-weight:600">
+      {{ result.right }} из {{ result.total }} —
+      {% if result.passed %}сдано{% else %}не сдано{% endif %}
+    </div>
+    <div style="color:var(--text-muted);font-size:0.92rem">
+      {% if result.passed %}
+        Порог 80%. Вернись к этому узлу через несколько дней — важно не «понял», а «помню».
+      {% else %}
+        Порог 80%. Прочитай разборы ниже и пройди снова.
+      {% endif %}
+      {% if result.attempt_id is none %}
+        <br>Попытка не записана: база недоступна.
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% for item in items %}
+<div class="question">
+  <div class="question-number">Вопрос {{ loop.index }}</div>
+  <div class="question-prompt">{{ item.question.prompt }}</div>
+
+  <div class="options">
+    {% for option in item.question.options %}
+    <div class="option
+                {%- if option.id in item.verdict.correct_option_ids %} correct
+                {%- elif option.id in item.chosen %} chosen-wrong{% endif %}">
+      <span style="width:1.1rem;flex-shrink:0">
+        {%- if option.id in item.verdict.correct_option_ids %}✓
+        {%- elif option.id in item.chosen %}✗{% endif -%}
+      </span>
+      <span>{{ option.text }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="verdict">
+    <div class="verdict-label {{ 'ok' if item.verdict.correct else 'bad' }}">
+      {% if item.verdict.correct %}Верно{% else %}Неверно{% endif %}
+    </div>
+    <div class="verdict-text">{{ item.verdict.explanation }}</div>
+    {% if item.verdict.source %}
+    <div style="color:var(--text-faint);font-size:0.85rem;margin-top:0.6rem">
+      источник: {{ item.verdict.source }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+<div class="actions">
+  <a class="btn" href="/skills/{{ result.skill_id }}/quiz">Пройти заново</a>
+  <a class="btn secondary" href="/skills/{{ result.skill_id }}">К теории узла</a>
+  <a class="btn secondary" href="/">К графу</a>
+</div>
+
+<script>
+  document.getElementById("verdict")?.scrollIntoView({ behavior: "smooth", block: "start" });
+</script>

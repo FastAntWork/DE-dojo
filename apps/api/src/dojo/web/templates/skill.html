@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ skill.title }} — DE Dojo{% endblock %}
+
+{% block main %}
+<main class="reading">
+  <p style="margin:0 0 0.75rem"><a href="/">← к графу</a></p>
+
+  <h1>{{ skill.title }}</h1>
+
+  <div class="meta" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.75rem">
+    <span class="tag">фаза {{ skill.phase }}</span>
+    <span class="tag">{{ skill.track }}</span>
+    <span class="tag">{{ skill.estimated_hours | int }} ч</span>
+    {% if skill.priority == "secondary" %}<span class="tag warn">отложено</span>{% endif %}
+    {% for tag in skill.job_tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+  </div>
+
+  <h2 style="margin-top:0">Что нужно уметь</h2>
+  <ul class="prose">
+    {% for item in skill.objectives %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+
+  {% if skill.prereq %}
+  <p class="prereq" style="color:var(--text-muted);font-size:0.92rem">
+    Предпосылки:
+    {% for pid in skill.prereq %}<a href="/skills/{{ pid }}">{{ pid }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+
+  <h2>Теория</h2>
+  {% if not theory_html %}
+    <div class="notice warn">Файл теории отсутствует.</div>
+  {% elif not skill.theory_ready %}
+    <div class="notice warn">
+      Теория ещё не написана — сейчас это заглушка со ссылками на документацию,
+      по которой её нужно законспектировать.
+    </div>
+    <div class="prose">{{ theory_html | safe }}</div>
+  {% else %}
+    <div class="prose">{{ theory_html | safe }}</div>
+  {% endif %}
+
+  <div class="actions">
+    {% if skill.has_quiz %}
+      <a class="btn" href="/skills/{{ skill.id }}/quiz">Пройти квиз</a>
+    {% endif %}
+    <a class="btn secondary" href="/">Вернуться к графу</a>
+  </div>
+</main>
+{% endblock %}

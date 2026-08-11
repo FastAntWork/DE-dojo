@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Квиз: {{ quiz.title }} — DE Dojo{% endblock %}
+
+{% block main %}
+<main class="reading">
+  <p style="margin:0 0 0.75rem"><a href="/skills/{{ quiz.skill_id }}">← к узлу</a></p>
+
+  <h1>{{ quiz.title }}</h1>
+  <p class="lede">
+    {{ quiz.questions | length }} вопросов.
+    Разбор появится после отправки — по каждому вопросу, независимо от того,
+    верно ты ответил или нет.
+  </p>
+
+  <form hx-post="/skills/{{ quiz.skill_id }}/quiz"
+        hx-target="#result"
+        hx-swap="innerHTML"
+        hx-disabled-elt="#submit">
+
+    {% for question in quiz.questions %}
+    <div class="question">
+      <div class="question-number">Вопрос {{ loop.index }} из {{ quiz.questions | length }}</div>
+      <div class="question-prompt">{{ question.prompt }}</div>
+
+      <div class="options">
+        {% for option in question.options %}
+        <label class="option">
+          <input type="{{ 'checkbox' if question.kind == 'multiple' else 'radio' }}"
+                 name="q:{{ question.id }}"
+                 value="{{ option.id }}">
+          <span>{{ option.text }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="actions">
+      <button class="btn" id="submit" type="submit">Проверить</button>
+      <span class="htmx-indicator" style="color:var(--text-muted)">проверяю…</span>
+    </div>
+  </form>
+
+  <div id="result"></div>
+</main>
+{% endblock %}

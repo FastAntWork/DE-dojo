@@ -27,23 +27,41 @@
 
 ## Быстрый старт
 
+Требуется только **Docker** и **Python 3.12+**. Работает одинаково на Windows,
+macOS и Linux — оркестрация живёт в самом `dojo`, а не в Makefile, которого на
+Windows нет.
+
 ```bash
-git clone <repo> ~/de-dojo && cd ~/de-dojo
-bash tools/install-docker.sh    # только при первой установке, спросит sudo
-bash tools/bootstrap-python.sh  # uv, Python 3.12, git-хуки
-make doctor                     # проверит железо и подскажет профиль LLM
-make start                      # поднимет стек, применит миграции, зальёт контент
+git clone <repo> && cd de-dojo
 ```
 
-После `make start`:
+```bash
+uv sync --all-packages
+```
+
+```bash
+uv run dojo doctor
+```
+
+```bash
+uv run dojo start
+```
+
+`dojo start` поднимает контейнеры, ждёт готовности API, применяет миграции и
+заливает контент — одной командой.
 
 | | |
 |---|---|
-| Готовность | http://127.0.0.1:8000/readyz |
+| **Приложение** | http://127.0.0.1:8000 |
+| Прогресс | http://127.0.0.1:8000/progress |
 | Документация API | http://127.0.0.1:8000/docs |
 
-Документация работает без интернета: ассеты Swagger UI лежат в репозитории,
-а не тянутся с CDN.
+На Linux и macOS всё то же доступно через `make`: `make start`, `make down`,
+`make ci`. На Windows пользуйся `dojo` напрямую.
+
+**Ничего не грузится из интернета.** Ни одна страница приложения не обращается
+к внешнему хосту: htmx и ассеты Swagger UI лежат в репозитории. Проверяется
+тестом.
 
 ## Профили compose
 

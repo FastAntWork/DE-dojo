@@ -9,12 +9,14 @@
 |---|---|---|
 | `swagger-ui-bundle.js` | https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/swagger-ui-bundle.js | 5.18.2 |
 | `swagger-ui.css` | https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/swagger-ui.css | 5.18.2 |
+| `htmx.min.js` | https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js | 2.0.4 |
 
 Контрольные суммы SHA-256:
 
 ```
 c50b94bbc4f02394326fb7aed1f4fb693b3677f4b3d3344e0d6131808cbf281f  swagger-ui-bundle.js
 8f33d996025317049d4a9864f421eab2b2a247872f388026fa94c654913259e7  swagger-ui.css
+e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447  htmx.min.js
 ```
 
 Проверить:

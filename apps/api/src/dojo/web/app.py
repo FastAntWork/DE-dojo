@@ -21,7 +21,7 @@ from dojo.core.cache import Cache
 from dojo.core.config import Settings, get_settings
 from dojo.core.db import Database
 from dojo.core.logging import configure_logging, get_logger
-from dojo.web.routers import content, health
+from dojo.web.routers import content, health, ui
 
 logger = get_logger(__name__)
 
@@ -90,6 +90,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(content.router)
+    # Страницы регистрируются последними: их маршруты самые общие, и роутер
+    # с префиксом /api должен получать запросы первым.
+    app.include_router(ui.router)
     return app
 
 

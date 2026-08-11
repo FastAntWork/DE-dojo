@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Прогресс — DE Dojo{% endblock %}
+
+{% block content %}
+<h1>Прогресс</h1>
+<p class="lede">
+  История попыток. Кривая удержания появится вместе с планировщиком повторений.
+</p>
+
+{% if not rows %}
+  <div class="empty">
+    Попыток пока нет. Открой любой узел с квизом и пройди его —
+    результат появится здесь.
+  </div>
+{% else %}
+  <div class="prose">
+    <table>
+      <thead>
+        <tr>
+          <th>Узел</th>
+          <th>Попытка</th>
+          <th>Результат</th>
+          <th>Когда</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><a href="/skills/{{ row['skill_id'] }}">{{ titles.get(row['skill_id'], row['skill_id']) }}</a></td>
+          <td>#{{ row['attempt_no'] }}</td>
+          <td>
+            {% if row['status'] == 'passed' %}
+              <span class="tag ok">{{ (row['score'] * 100) | int }}%</span>
+            {% else %}
+              <span class="tag bad">{{ (row['score'] * 100) | int }}%</span>
+            {% endif %}
+          </td>
+          <td>{{ row['finished_at'].strftime('%d.%m.%Y %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

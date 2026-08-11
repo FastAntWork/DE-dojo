@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from dojo_cli import content, quiz
+from dojo_cli import content, quiz, stack
 from dojo_cli.doctor import Status, run_all
 
 app = typer.Typer(
@@ -20,6 +20,14 @@ app = typer.Typer(
 )
 app.add_typer(content.app, name="content")
 app.add_typer(quiz.app, name="quiz")
+app.add_typer(stack.app, name="stack")
+
+# Самые частые команды продублированы на верхнем уровне: `dojo start` человек
+# набирает каждый день, и заставлять его помнить про группу `stack` незачем.
+app.command("start")(stack.start)
+app.command("up")(stack.up)
+app.command("down")(stack.down)
+app.command("ps")(stack.ps)
 
 console = Console()
 

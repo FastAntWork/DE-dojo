@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Граф навыков — DE Dojo{% endblock %}
+
+{% block content %}
+<h1>Граф навыков</h1>
+<p class="lede">
+  {{ total }} узлов, {{ ready }} с написанной теорией.
+  Порядок задан программой в <code>docs/curriculum.md</code>.
+</p>
+
+{% for phase in phases %}
+<section class="phase">
+  <div class="phase-head">
+    <h2>Фаза {{ phase.number }}. {{ phase.title }}</h2>
+    <span class="count">{{ phase.skills | length }}</span>
+  </div>
+
+  <div class="cards">
+    {% for skill in phase.skills %}
+    <a class="card" href="/skills/{{ skill.id }}">
+      <h3>{{ skill.title }}</h3>
+      <div class="meta">
+        <span class="tag">{{ skill.track }}</span>
+        <span class="tag">{{ skill.estimated_hours | int }} ч</span>
+        {% if skill.priority == "secondary" %}
+          <span class="tag warn">отложено</span>
+        {% endif %}
+        {% if skill.theory_ready %}
+          <span class="tag ok">теория готова</span>
+        {% else %}
+          <span class="tag">заглушка</span>
+        {% endif %}
+        {% if skill.has_quiz %}<span class="tag accent">квиз</span>{% endif %}
+      </div>
+      {% if skill.prereq %}
+      <div class="prereq">после: {{ skill.prereq | join(", ") }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}
