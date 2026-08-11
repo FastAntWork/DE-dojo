@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -120,6 +121,90 @@ def warn_if_low_memory(profile: str) -> None:
     )
 
 
+# Порты, которые стек публикует на хосте, и переменные, которыми они задаются.
+HOST_PORTS: Final[dict[str, tuple[int, str]]] = {
+    "POSTGRES_HOST_PORT": (5432, "postgres"),
+    "REDIS_HOST_PORT": (6379, "redis"),
+    "API_HOST_PORT": (8000, "api"),
+}
+
+
+def is_port_free(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def read_env(root: Path) -> dict[str, str]:
+    env: dict[str, str] = {}
+    path = root / ".env"
+    if not path.is_file():
+        return env
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        env[key.strip()] = value.strip()
+    return env
+
+
+def set_env_value(root: Path, key: str, value: str) -> None:
+    path = root / ".env"
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    prefix = f"{key}="
+    for index, line in enumerate(lines):
+        if line.strip().startswith(prefix):
+            lines[index] = f"{prefix}{value}"
+            break
+    else:
+        lines.append(f"{prefix}{value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def preflight_ports(root: Path) -> int:
+    """Освобождает стеку порты, подбирая свободные вместо занятых.
+
+    Типичная причина конфликта — второй докер. У человека может одновременно
+    работать docker-ce внутри WSL и Docker Desktop на Windows, и оба пытаются
+    занять 5432 или 6379. Сообщение самого докера при этом говорит про
+    «Only one usage of each socket address», по которому непонятно ни кто
+    держит порт, ни что с этим делать.
+
+    Возвращает порт API — он нужен, чтобы открыть окно по верному адресу.
+    """
+    env = read_env(root)
+    api_port = int(env.get("API_HOST_PORT", HOST_PORTS["API_HOST_PORT"][0]))
+
+    for key, (default, service) in HOST_PORTS.items():
+        current = int(env.get(key, default))
+        if is_port_free(current):
+            if key == "API_HOST_PORT":
+                api_port = current
+            continue
+
+        # Ищем ближайший свободный, но не бесконечно: если занято двадцать
+        # портов подряд, дело не в конфликте, а в чём-то посерьёзнее.
+        chosen = next((p for p in range(current + 1, current + 21) if is_port_free(p)), None)
+        if chosen is None:
+            console.print(f"  [red]Порт {current} занят, свободного рядом нет ({service}).[/red]")
+            raise typer.Exit(code=1)
+
+        console.print(
+            f"  [yellow]Порт {current} занят[/yellow] — {service} переезжает на {chosen}. "
+            "Чаще всего это второй докер: проверь, не поднят ли стек в WSL."
+        )
+        set_env_value(root, key, str(chosen))
+        if key == "API_HOST_PORT":
+            api_port = chosen
+
+    return api_port
+
+
 def ensure_env(root: Path) -> None:
     env = root / ".env"
     example = root / ".env.example"
@@ -138,6 +223,7 @@ def up(
     root = repo.resolve() if repo else find_repo_root()
     ensure_env(root)
     warn_if_low_memory(profile)
+    preflight_ports(root)
 
     # --build обязателен: без него правка кода не попадает в контейнер.
     result = compose(root, [*profile_args(profile), "up", "-d", "--build", "--quiet-pull"])
@@ -203,6 +289,10 @@ def start(
         serve(repo=root, port=port, open_window=open_window)
         return
 
+    ensure_env(root)
+    # Порт мог переехать из-за конфликта, поэтому окно открываем по тому
+    # адресу, который стек действительно занял, а не по значению по умолчанию.
+    port = preflight_ports(root)
     up(profile=profile, repo=root)
 
     base = f"http://127.0.0.1:{port}"
