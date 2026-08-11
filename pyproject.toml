@@ -4,8 +4,19 @@ version = "0.0.0"
 description = "Локальный тренажёр хард-скиллов Data Engineer"
 requires-python = ">=3.12,<3.13"
 
+# Корень зависит от своих же пакетов намеренно. Без этого обычный `uv sync`
+# ставит только зависимости корня, скрипт `dojo` в окружение не попадает, и
+# `uv run dojo` падает с «program not found» — работает лишь длинная форма
+# `uv run --package dojo-cli dojo`. Требовать её от человека при каждом
+# запуске нельзя, поэтому членство в workspace объявлено явной зависимостью.
+dependencies = ["dojo", "dojo-cli"]
+
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+dojo = { workspace = true }
+dojo-cli = { workspace = true }
 
 [tool.uv.workspace]
 members = ["apps/api", "apps/cli", "apps/runner"]

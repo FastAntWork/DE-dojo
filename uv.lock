@@ -212,6 +212,10 @@ wheels = [
 name = "de-dojo"
 version = "0.0.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "dojo" },
+    { name = "dojo-cli" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -231,6 +235,10 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "dojo", editable = "apps/api" },
+    { name = "dojo-cli", editable = "apps/cli" },
+]
 
 [package.metadata.requires-dev]
 dev = [
