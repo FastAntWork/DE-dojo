@@ -1,0 +1,27 @@
+id: dwh.scd
+title: "Медленно меняющиеся измерения: типы SCD"
+track: dwh
+level: 3
+phase: 3
+priority: core
+estimated_hours: 5
+prereq: [dwh.star-schema]
+job_tags: [dwh, data-modeling, etl, dbt, data-marts]
+
+objectives:
+  - "Назвать типы SCD от 0 до 6 и сказать, какую задачу решает каждый"
+  - "Реализовать SCD 2 через valid_from, valid_to и признак текущей версии"
+  - "Объяснить, почему факт должен ссылаться на версию измерения, а не на его бизнес-ключ"
+  - "Выбрать тип SCD по требованию бизнеса и назвать цену выбора"
+  - "Найти ошибку в загрузке SCD 2: разрывы, пересечения интервалов, дубли текущих версий"
+
+theory:
+  read: theory/dwh/dwh.scd.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dwh.scd.yaml
+    difficulty: 0.55
+
+review_after_days: [1, 4, 12, 30]

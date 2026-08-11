@@ -17,11 +17,29 @@ import pytest
 from dojo_cli.stack import is_port_free, preflight_ports, read_env, set_env_value
 
 
+def free_port() -> int:
+    """Порт, который сейчас свободен."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
+    """Проект со ЗАВЕДОМО свободными портами.
+
+    Значения по умолчанию (5432, 6379, 8000) сюда не годятся: на машине
+    разработчика они почти наверняка заняты своим же поднятым стеком, и тест
+    падал бы в зависимости от того, запущено ли приложение. Тест обязан
+    проверять логику, а не состояние окружения.
+    """
+    ports = {
+        "POSTGRES_HOST_PORT": free_port(),
+        "REDIS_HOST_PORT": free_port(),
+        "API_HOST_PORT": free_port(),
+    }
     (tmp_path / ".env").write_text(
-        "POSTGRES_HOST_PORT=5432\nREDIS_HOST_PORT=6379\nAPI_HOST_PORT=8000\n",
-        encoding="utf-8",
+        "".join(f"{key}={value}\n" for key, value in ports.items()), encoding="utf-8"
     )
     return tmp_path
 
@@ -71,10 +89,12 @@ class TestPortProbe:
 
 class TestPreflight:
     def test_keeps_ports_when_free(self, project: Path) -> None:
+        before = read_env(project)
+
         api_port = preflight_ports(project)
 
-        assert api_port == 8000
-        assert read_env(project)["REDIS_HOST_PORT"] == "6379"
+        assert str(api_port) == before["API_HOST_PORT"]
+        assert read_env(project) == before, "свободные порты трогать нельзя"
 
     def test_moves_api_off_busy_port_and_returns_new_one(
         self, project: Path, busy_port: int

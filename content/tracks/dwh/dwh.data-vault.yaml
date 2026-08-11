@@ -1,0 +1,27 @@
+id: dwh.data-vault
+title: "Data Vault 2.0: хабы, линки, сателлиты"
+track: dwh
+level: 4
+phase: 3
+priority: core
+estimated_hours: 8
+prereq: [dwh.star-schema]
+job_tags: [dwh, data-vault, data-modeling, greenplum, dbt, etl]
+
+objectives:
+  - "Разложить предметную область на хабы, линки и сателлиты и обосновать каждое решение"
+  - "Отличить бизнес-ключ от суррогатного и объяснить, зачем в DV 2.0 перешли на хеш-ключи"
+  - "Объяснить, почему Data Vault выдерживает изменение состава источников без переделки модели"
+  - "Разделить Raw Vault и Business Vault и сказать, что где лежит"
+  - "Обосновать выбор между Data Vault и звездой, назвав цену каждого варианта"
+
+theory:
+  read: theory/dwh/dwh.data-vault.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dwh.data-vault.yaml
+    difficulty: 0.6
+
+review_after_days: [1, 4, 12, 30]
