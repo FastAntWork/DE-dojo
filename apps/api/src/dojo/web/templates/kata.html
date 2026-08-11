@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Ката: {{ kata.name }} — DE Dojo{% endblock %}
+
+{% block main %}
+<main class="reading">
+  <p style="margin:0 0 0.75rem"><a href="/skills/{{ skill.id }}">← к узлу</a></p>
+
+  <div class="prose">{{ task_html | safe }}</div>
+
+  <h2>Открытые тесты</h2>
+  <p style="color:var(--text-muted);font-size:0.93rem">
+    Это те же тесты, что прогонятся у тебя. Кроме них есть скрытые — они
+    проверяют краевые случаи, и подглядеть их нельзя.
+  </p>
+  <div class="prose">
+    <pre><code>{{ kata.tests_public }}</code></pre>
+  </div>
+
+  <h2>Решение</h2>
+  <form hx-post="/skills/{{ skill.id }}/kata"
+        hx-target="#kata-result"
+        hx-swap="innerHTML"
+        hx-disabled-elt="#kata-submit">
+    <textarea class="sql-input" name="answer" rows="18" spellcheck="false">{{ kata.starter }}</textarea>
+
+    <div class="actions" style="margin-top:0.75rem">
+      <button class="btn" id="kata-submit" type="submit">Прогнать тесты</button>
+      <span class="htmx-indicator" style="color:var(--text-muted)">
+        запускаю песочницу, это занимает несколько секунд…
+      </span>
+    </div>
+  </form>
+
+  <div id="kata-result"></div>
+
+  <div class="actions">
+    <a class="btn secondary" href="/skills/{{ skill.id }}">К теории узла</a>
+    <a class="btn secondary" href="/">К графу</a>
+  </div>
+</main>
+{% endblock %}

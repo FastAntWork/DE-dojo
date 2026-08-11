@@ -32,6 +32,7 @@
         {% endif %}
         {% if skill.has_quiz %}<span class="tag accent">квиз</span>{% endif %}
         {% if skill.has_sql %}<span class="tag accent">практика</span>{% endif %}
+        {% if skill.has_kata %}<span class="tag accent">код</span>{% endif %}
       </div>
       {% if skill.prereq %}
       <div class="prereq">после: {{ skill.prereq | join(", ") }}</div>

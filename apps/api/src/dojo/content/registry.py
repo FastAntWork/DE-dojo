@@ -16,6 +16,7 @@ from pathlib import Path
 from dojo.content.loader import SkillSpec, TaskSpec, load_skills
 from dojo.content.quiz import Quiz, QuizError, parse_quiz
 from dojo.core.logging import get_logger
+from dojo.runner.kata import Kata, KataError, load_kata
 from dojo.runner.sql_check import SqlTaskError, SqlTaskFile, parse_task_file
 
 logger = get_logger(__name__)
@@ -34,6 +35,7 @@ class ContentIndex:
     skills: dict[str, SkillSpec] = field(default_factory=dict)
     quizzes: dict[str, Quiz] = field(default_factory=dict)
     sql_tasks: dict[str, SqlTaskFile] = field(default_factory=dict)
+    katas: dict[str, Kata] = field(default_factory=dict)
 
     def reload(self) -> None:
         skills = load_skills(self.content_root, self.repo_root)
@@ -41,6 +43,7 @@ class ContentIndex:
 
         quizzes: dict[str, Quiz] = {}
         sql_tasks: dict[str, SqlTaskFile] = {}
+        katas: dict[str, Kata] = {}
 
         for skill in skills:
             quiz_task = self.quiz_task(skill)
@@ -63,14 +66,24 @@ class ContentIndex:
                 except SqlTaskError:
                     logger.warning("sql_tasks.parse.failed", skill_id=skill.id)
 
+            kata_task = self.kata_task(skill)
+            if kata_task is not None:
+                try:
+                    name = str(kata_task.spec["path"]).removeprefix("katas/")
+                    katas[skill.id] = load_kata(self.content_root, name)
+                except KataError:
+                    logger.warning("kata.load.failed", skill_id=skill.id)
+
         self.quizzes = quizzes
         self.sql_tasks = sql_tasks
+        self.katas = katas
 
         logger.info(
             "content.loaded",
             skills=len(self.skills),
             quizzes=len(self.quizzes),
             sql_tasks=len(self.sql_tasks),
+            katas=len(self.katas),
         )
 
     @staticmethod
@@ -80,6 +93,10 @@ class ContentIndex:
     @staticmethod
     def sql_task(skill: SkillSpec) -> TaskSpec | None:
         return next((task for task in skill.tasks if task.type == "sql"), None)
+
+    @staticmethod
+    def kata_task(skill: SkillSpec) -> TaskSpec | None:
+        return next((task for task in skill.tasks if task.type == "kata"), None)
 
     def skill(self, skill_id: str) -> SkillSpec:
         try:

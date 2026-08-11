@@ -20,7 +20,6 @@ import time
 from pathlib import Path
 from typing import Annotated, Final
 
-import httpx
 import psutil
 import typer
 from rich.console import Console
@@ -214,10 +213,18 @@ def ensure_env(root: Path) -> None:
     console.print("  создан .env из .env.example")
 
 
+# Хранилища, нужные приложению. Само приложение сюда не входит: оно
+# запускается на хосте — см. пояснение в serve().
+DATA_SERVICES: Final = ("postgres", "redis")
+
+
 @app.command("up")
 def up(
     profile: Annotated[str, typer.Option(help="ai | analytics | storage | full")] = "",
     repo: Annotated[Path | None, typer.Option(help="Корень проекта.")] = None,
+    services: Annotated[
+        str, typer.Option(help="Список через запятую; пусто — все сервисы профиля.")
+    ] = "",
 ) -> None:
     """Поднять контейнеры."""
     root = repo.resolve() if repo else find_repo_root()
@@ -225,8 +232,11 @@ def up(
     warn_if_low_memory(profile)
     preflight_ports(root)
 
+    selected = [name for name in services.split(",") if name]
     # --build обязателен: без него правка кода не попадает в контейнер.
-    result = compose(root, [*profile_args(profile), "up", "-d", "--build", "--quiet-pull"])
+    result = compose(
+        root, [*profile_args(profile), "up", "-d", "--build", "--quiet-pull", *selected]
+    )
     if result.returncode != 0:
         raise typer.Exit(code=result.returncode)
     ps(repo=root)
@@ -290,39 +300,24 @@ def start(
         return
 
     ensure_env(root)
-    # Порт мог переехать из-за конфликта, поэтому окно открываем по тому
-    # адресу, который стек действительно занял, а не по значению по умолчанию.
     port = preflight_ports(root)
-    up(profile=profile, repo=root)
 
-    base = f"http://127.0.0.1:{port}"
-    console.print("\n  жду готовности API", end="")
-    for _ in range(60):
-        try:
-            if httpx.get(f"{base}/readyz", timeout=2).status_code == 200:
-                console.print(" — [green]готов[/green]")
-                break
-        except httpx.HTTPError:
-            pass
-        console.print(".", end="")
-        time.sleep(2)
-    else:
-        console.print("\n  [red]API не поднялся за две минуты.[/red] Смотри: dojo stack logs api")
-        raise typer.Exit(code=1)
-
-    from dojo_cli import content as content_cmd
+    # В контейнерах живут только хранилища. Само приложение запускается на
+    # хосте, и это не мелочь: kata-задания прогоняются в docker, а изнутри
+    # контейнера docker недоступен. Пробрасывать docker.sock внутрь — тот
+    # самый способ отдать песочнице контроль над хостом, который мы запретили.
+    # Побочная выгода: правка кода видна сразу, без пересборки образа.
+    up(profile=profile, repo=root, services=",".join(DATA_SERVICES))
 
     console.print()
     _migrate()
+
+    from dojo_cli import content as content_cmd
+
     content_cmd.sync(dry_run=False, database_url=None, repo=root)
 
-    console.print(f"\n  [bold]Готово.[/bold] Приложение: {base}")
-    console.print(f"  Документация API: {base}/docs")
-
-    if open_window:
-        from dojo_cli.desktop import launch
-
-        launch(base)
+    console.print()
+    serve(repo=root, port=port, open_window=open_window)
 
 
 def _migrate() -> None:

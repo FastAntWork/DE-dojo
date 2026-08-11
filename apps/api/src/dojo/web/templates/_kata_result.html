@@ -1,0 +1,69 @@
+{# Результат прогона каты. Показываются имена тестов и сообщения об ошибках,
+   но не содержимое скрытых тестов: иначе решение подгоняют под них. #}
+
+<h2 id="kata-verdict" style="scroll-margin-top:5rem">Результат</h2>
+
+{% if result.infrastructure_error %}
+  <div class="verdict">
+    <div class="verdict-label bad">Прогон не состоялся</div>
+    <div class="verdict-text">{{ result.infrastructure_error }}</div>
+    {% if result.stderr %}
+    <div class="prose" style="margin-top:0.75rem">
+      <pre><code>{{ result.stderr }}</code></pre>
+    </div>
+    {% endif %}
+  </div>
+
+{% else %}
+  <div class="score">
+    <div class="score-value {{ 'ok' if result.passed else 'bad' }}">
+      {{ result.total - result.failed }}/{{ result.total }}
+    </div>
+    <div>
+      <div style="font-weight:600">
+        {% if result.passed %}Все тесты прошли{% else %}Провалено тестов: {{ result.failed }}{% endif %}
+      </div>
+      <div style="color:var(--text-muted);font-size:0.92rem">
+        {% if result.passed %}
+          Решение выдержало и открытые, и скрытые проверки.
+        {% else %}
+          Ниже — что именно не сошлось.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <table>
+      <thead>
+        <tr><th>Тест</th><th>Где</th><th>Результат</th></tr>
+      </thead>
+      <tbody>
+        {% for case in result.cases %}
+        <tr>
+          <td><code>{{ case.name }}</code></td>
+          <td>{{ 'скрытый' if case.hidden else 'открытый' }}</td>
+          <td>
+            {% if case.passed %}
+              <span class="tag ok">прошёл</span>
+            {% else %}
+              <span class="tag bad">провален</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if not case.passed and case.message %}
+        <tr>
+          <td colspan="3" style="color:var(--text-muted);font-size:0.88rem">
+            {{ case.message[:400] }}
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<script>
+  document.getElementById("kata-verdict")?.scrollIntoView({ behavior: "smooth", block: "start" });
+</script>

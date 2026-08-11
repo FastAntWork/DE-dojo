@@ -9,6 +9,7 @@ JSON-API. Два независимых судьи рано или поздно 
 
 from __future__ import annotations
 
+import asyncio
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,8 @@ from markdown_it import MarkdownIt
 from dojo.content.registry import ContentIndex, SkillNotFoundError
 from dojo.core.logging import get_logger
 from dojo.runner.datasets import DatasetError, ensure_dataset, load_dataset
+from dojo.runner.kata import Kata, KataError, KataResult, build_image, image_exists
+from dojo.runner.kata import run as run_kata
 from dojo.runner.sql_check import SqlTaskError
 from dojo.runner.sql_check import check as sql_check
 from dojo.web.routers.content import (
@@ -247,6 +250,62 @@ async def sql_submit(
         "_sql_result.html",
         context(request, task=task, verdict=verdict, answer=answer),
     )
+
+
+@router.get("/skills/{skill_id}/kata", response_class=HTMLResponse)
+async def kata_page(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    kata = index.katas.get(skill_id)
+    if kata is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"у узла {skill_id} нет каты")
+
+    return templates.TemplateResponse(
+        request,
+        "kata.html",
+        context(
+            request,
+            skill=index.skill(skill_id),
+            kata=kata,
+            task_html=markdown.render(kata.task_md),
+        ),
+    )
+
+
+@router.post("/skills/{skill_id}/kata", response_class=HTMLResponse)
+async def kata_submit(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    kata = index.katas.get(skill_id)
+    if kata is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"у узла {skill_id} нет каты")
+
+    form = await request.form()
+    answer = str(form.get("answer", ""))
+
+    # Прогон в песочнице — блокирующий вызов docker, поэтому уводим его в
+    # поток: иначе одно решение подвешивало бы весь сервер на десятки секунд.
+    result = await asyncio.to_thread(_run_kata_safely, kata, answer)
+
+    return templates.TemplateResponse(
+        request, "_kata_result.html", context(request, result=result, answer=answer)
+    )
+
+
+def _run_kata_safely(kata: Kata, answer: str) -> KataResult:
+    """Собирает образ песочницы при первом обращении и запускает прогон."""
+    try:
+        if not image_exists():
+            build_image(Path(__file__).resolve().parents[5])
+        return run_kata(kata, answer)
+    except KataError as exc:
+        return KataResult(passed=False, total=0, failed=0, infrastructure_error=str(exc))
+    except OSError as exc:
+        return KataResult(
+            passed=False,
+            total=0,
+            failed=0,
+            infrastructure_error=(
+                f"Не удалось запустить песочницу: {exc}. Она работает в Docker — "
+                "проверь, что он запущен."
+            ),
+        )
 
 
 @router.get("/progress", response_class=HTMLResponse)
