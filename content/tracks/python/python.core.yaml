@@ -22,5 +22,9 @@ tasks:
   - type: quiz
     file: quizzes/python.core.yaml
     difficulty: 0.3
+  - type: kata
+    path: katas/chunked
+    timeout_sec: 30
+    difficulty: 0.5
 
 review_after_days: [1, 4, 12, 30]
