@@ -1,0 +1,28 @@
+id: airflow.core
+title: "Airflow: DAG, операторы, расписание"
+track: airflow
+level: 3
+phase: 4
+estimated_hours: 8
+prereq: [python.core]
+soft_prereq: [dbt.core]
+job_tags: [airflow, etl, orchestration, python]
+
+objectives:
+  - "Объяснить, что Airflow оркестратор, а не средство обработки данных, и что из этого следует"
+  - "Описать, что происходит от появления файла DAG до запуска первой задачи"
+  - "Отличить логическую дату интервала от фактического времени запуска и сказать, почему это важно"
+  - "Выбрать способ передачи данных между задачами и объяснить, почему XCom не годится для больших объёмов"
+  - "Прочитать состояние задачи (queued, running, up_for_retry, upstream_failed) и понять, где искать причину"
+  - "Назвать типовые ошибки: код верхнего уровня, тяжёлые импорты, задачи с состоянием"
+
+theory:
+  read: theory/airflow/airflow.core.md
+  rag_scope: [airflow-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/airflow.core.yaml
+    difficulty: 0.65
+
+review_after_days: [1, 4, 12, 30]

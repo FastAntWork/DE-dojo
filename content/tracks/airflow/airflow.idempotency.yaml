@@ -1,0 +1,26 @@
+id: airflow.idempotency
+title: "Идемпотентность, backfill и повторные запуски"
+track: airflow
+level: 4
+phase: 4
+estimated_hours: 6
+prereq: [airflow.core]
+job_tags: [airflow, etl, orchestration, data-quality]
+
+objectives:
+  - "Дать определение идемпотентности пайплайна и проверить конкретную задачу на неё"
+  - "Переписать неидемпотентную загрузку тремя способами и назвать цену каждого"
+  - "Объяснить, почему ретраи опасны без идемпотентности"
+  - "Отличить backfill от обычного прогона и назвать, что ломает backfill"
+  - "Объяснить, почему exactly-once недостижим в общем случае и чем его заменяют"
+
+theory:
+  read: theory/airflow/airflow.idempotency.md
+  rag_scope: [airflow-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/airflow.idempotency.yaml
+    difficulty: 0.75
+
+review_after_days: [1, 4, 12, 30]

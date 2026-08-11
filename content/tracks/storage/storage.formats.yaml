@@ -1,0 +1,26 @@
+id: storage.formats
+title: "Форматы хранения: Parquet, колоночность, объектные хранилища"
+track: storage
+level: 3
+phase: 3
+estimated_hours: 6
+prereq: [dwh.concepts]
+job_tags: [parquet, s3, spark, dwh, etl]
+
+objectives:
+  - "Объяснить, почему колоночный формат быстрее строкового на аналитических запросах, и когда это неверно"
+  - "Назвать три механизма Parquet, экономящих чтение: проекция колонок, статистика страниц, словарное кодирование"
+  - "Выбрать колонку партиционирования и объяснить, чем плох выбор с высокой кардинальностью"
+  - "Опознать проблему мелких файлов по симптомам и назвать способ починки"
+  - "Сказать, что даёт табличный формат (Iceberg, Delta) поверх Parquet и какой без него проблемы не решить"
+
+theory:
+  read: theory/storage/storage.formats.md
+  rag_scope: [parquet-docs, iceberg-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/storage.formats.yaml
+    difficulty: 0.6
+
+review_after_days: [1, 4, 12, 30]

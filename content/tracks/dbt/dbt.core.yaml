@@ -1,0 +1,27 @@
+id: dbt.core
+title: "dbt: модели, тесты, инкрементальность"
+track: dbt
+level: 3
+phase: 4
+estimated_hours: 8
+prereq: [dwh.star-schema, sql.subqueries-cte]
+job_tags: [dbt, sql, dwh, etl, analytics-engineering]
+
+objectives:
+  - "Объяснить, что dbt делает с SELECT-запросом и почему он не является ETL-инструментом целиком"
+  - "Отличить model, source, seed и snapshot и сказать, для чего нужен каждый"
+  - "Выбрать материализацию (view, table, incremental, ephemeral) под задачу и обосновать выбор"
+  - "Написать инкрементальную модель и объяснить роль is_incremental и unique_key"
+  - "Назвать четыре встроенных теста dbt и сказать, какую ошибку данных ловит каждый"
+  - "Объяснить, зачем ref() вместо имени таблицы, и что из этого получается автоматически"
+
+theory:
+  read: theory/dbt/dbt.core.md
+  rag_scope: [dbt-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/dbt.core.yaml
+    difficulty: 0.65
+
+review_after_days: [1, 4, 12, 30]
