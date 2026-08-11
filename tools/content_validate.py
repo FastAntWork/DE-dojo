@@ -37,6 +37,11 @@ LAB_REQUIRED: Final = (
     "solution.md",
 )
 
+# Минимальный размер квиза. Проверяется валидатором, а не остаётся
+# договорённостью: квиз, который однажды написали на три вопроса, таким и
+# останется — дописывать его никогда не будет повода.
+MIN_QUESTIONS: Final = 20
+
 # Эталонное решение обязательно: сгенерированная задача сначала прогоняется
 # на нём в sandbox, и не прошедшая отбраковывается, не доходя до пользователя.
 KATA_REQUIRED: Final = (
@@ -199,6 +204,15 @@ def validate_quizzes(content_root: Path, repo_root: Path) -> list[Problem]:
         for error in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
             location = ".".join(str(part) for part in error.absolute_path) or "<корень>"
             problems.append(Problem(f"{rel}:{location}", error.message))
+
+        # Нижняя граница на размер квиза. Три вопроса на узел не дают ни
+        # одного осмысленного прогона: человек запоминает их наизусть с
+        # первого раза, и повторение через неделю проверяет память о вопросах,
+        # а не знание предмета. Двадцать — минимум, при котором прогоны
+        # перестают совпадать между собой.
+        count = len(data.get("questions", []))
+        if count < MIN_QUESTIONS:
+            problems.append(Problem(str(rel), f"вопросов {count}, нужно не меньше {MIN_QUESTIONS}"))
 
         seen: set[str] = set()
         for index, question in enumerate(data.get("questions", [])):

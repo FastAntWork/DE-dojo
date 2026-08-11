@@ -13,24 +13,27 @@ from typing import Any
 import pytest
 import yaml
 
-from tools.content_validate import Problem, validate
+from tools.content_validate import MIN_QUESTIONS, Problem, validate
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REAL_SCHEMAS = REPO_ROOT / "content" / "schemas"
 
 # Минимальный валидный квиз: файлы в quizzes/ проверяются схемой, поэтому
-# заглушки «questions: []» здесь уже недостаточно.
-SAMPLE_QUIZ = """
-questions:
-  - id: sample-question
+# заглушки «questions: []» здесь уже недостаточно. Вопросы генерируются, а не
+# перечисляются: валидатор требует не меньше MIN_QUESTIONS штук, и двадцать
+# копий одного и того же в исходнике теста были бы шумом.
+SAMPLE_QUIZ = "questions:\n" + "".join(
+    f"""  - id: sample-question-{number}
     kind: single
-    prompt: "Вопрос-заглушка для тестов валидатора"
+    prompt: "Вопрос-заглушка номер {number} для тестов валидатора"
     options:
       - text: "Верный"
         correct: true
       - text: "Неверный"
     explanation: "Объяснение-заглушка достаточной длины для схемы"
 """
+    for number in range(1, MIN_QUESTIONS + 1)
+)
 
 
 @pytest.fixture
@@ -204,3 +207,27 @@ class TestDuplicates:
         )
 
         assert "дублирующийся id" in messages(validate(content, content.parent))
+
+
+class TestQuizSize:
+    """Квиз обязан быть достаточно большим, чтобы прогоны не совпадали.
+
+    Правило существует ради повторений: три вопроса человек запоминает
+    наизусть с первого раза, и через неделю проверяется память о вопросах, а
+    не знание предмета. Проверка стоит в валидаторе, потому что иначе квиз,
+    однажды написанный на три вопроса, таким и останется.
+    """
+
+    def test_short_quiz_is_reported(self, content: Path) -> None:
+        write_skill(content, "sql.joins", "sql")
+        short = SAMPLE_QUIZ.split("  - id:")[:3]
+        (content / "quizzes" / "sample.yaml").write_text("  - id:".join(short), encoding="utf-8")
+
+        problems = messages(validate(content, content.parent))
+
+        assert "нужно не меньше" in problems
+
+    def test_quiz_of_exactly_minimum_is_valid(self, content: Path) -> None:
+        write_skill(content, "sql.joins", "sql")
+
+        assert validate(content, content.parent) == [], "SAMPLE_QUIZ ровно на границе"
