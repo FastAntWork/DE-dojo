@@ -18,7 +18,13 @@ import asyncpg
 import pytest
 
 from dojo.runner.datasets import ensure_dataset, load_dataset
-from dojo.runner.sql_check import SqlTask, check, parse_task_file
+from dojo.runner.sql_check import (
+    SqlTask,
+    SqlTaskFile,
+    check,
+    count_seq_scans,
+    parse_task_file,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -27,11 +33,22 @@ CONTENT = REPO_ROOT / "content"
 
 TASK_FILE = parse_task_file("sql.joins", CONTENT / "sql" / "sql.joins.yaml")
 
+# Все файлы задач проверяются автоматически: новый файл не должен требовать
+# правки тестов, иначе его однажды добавят непроверенным.
+ALL_TASK_FILES = [parse_task_file(p.stem, p) for p in sorted((CONTENT / "sql").glob("*.yaml"))]
+ALL_TASKS = [(f, task) for f in ALL_TASK_FILES for task in f.tasks]
+
 
 @pytest.fixture
 async def shop(postgres_dsn: str) -> AsyncIterator[asyncpg.Connection[asyncpg.Record]]:
-    dataset = load_dataset(CONTENT, "shop")
-    dsn = await ensure_dataset(postgres_dsn, dataset)
+    async for conn in _dataset_conn(postgres_dsn, "shop"):
+        yield conn
+
+
+async def _dataset_conn(
+    postgres_dsn: str, name: str
+) -> AsyncIterator[asyncpg.Connection[asyncpg.Record]]:
+    dsn = await ensure_dataset(postgres_dsn, load_dataset(CONTENT, name))
     conn: asyncpg.Connection[asyncpg.Record] = await asyncpg.connect(dsn)
     try:
         yield conn
@@ -68,25 +85,53 @@ class TestDataset:
 
 
 class TestReferenceSolutions:
-    """Эталон обязан проходить собственную проверку."""
+    """Эталон обязан проходить собственную проверку — во всех файлах задач."""
 
-    @pytest.mark.parametrize("task", TASK_FILE.tasks, ids=lambda t: t.id)
+    @pytest.mark.parametrize(
+        ("task_file", "task"), ALL_TASKS, ids=lambda x: x.id if isinstance(x, SqlTask) else ""
+    )
     async def test_solution_passes(
-        self, task: SqlTask, shop: asyncpg.Connection[asyncpg.Record]
+        self, task_file: SqlTaskFile, task: SqlTask, postgres_dsn: str
     ) -> None:
-        result = await check(shop, task, task.solution)
+        async for conn in _dataset_conn(postgres_dsn, task_file.dataset):
+            result = await check(conn, task, task.solution)
 
         assert result.passed, f"{task.id}: {result.message} {result.error or ''}"
 
-    @pytest.mark.parametrize("task", TASK_FILE.tasks, ids=lambda t: t.id)
+    @pytest.mark.parametrize(
+        ("task_file", "task"), ALL_TASKS, ids=lambda x: x.id if isinstance(x, SqlTask) else ""
+    )
     async def test_solution_returns_rows(
-        self, task: SqlTask, shop: asyncpg.Connection[asyncpg.Record]
+        self, task_file: SqlTaskFile, task: SqlTask, postgres_dsn: str
     ) -> None:
         # Задача, эталон которой возвращает пустоту, проверяет нечто странное:
         # её пройдёт любой запрос, ничего не находящий.
-        rows = await shop.fetch(task.solution)
+        async for conn in _dataset_conn(postgres_dsn, task_file.dataset):
+            rows = await conn.fetch(task.solution)
 
         assert rows, f"{task.id}: эталон вернул пустой результат"
+
+    @pytest.mark.parametrize(
+        ("task_file", "task"),
+        [(f, t) for f, t in ALL_TASKS if t.max_seq_scans is not None],
+        ids=lambda x: x.id if isinstance(x, SqlTask) else "",
+    )
+    async def test_plan_limit_is_achievable(
+        self, task_file: SqlTaskFile, task: SqlTask, postgres_dsn: str
+    ) -> None:
+        """Требование к плану должно быть выполнимым.
+
+        Задача, где мы требуем индексный доступ, а планировщик на реальных
+        данных всё равно выбирает Seq Scan, невыполнима в принципе — и
+        обнаружить это должен тест, а не человек, потративший на неё час.
+        """
+        async for conn in _dataset_conn(postgres_dsn, task_file.dataset):
+            seq_scans = await count_seq_scans(conn, task.solution)
+
+        assert seq_scans <= (task.max_seq_scans or 0), (
+            f"{task.id}: эталон даёт {seq_scans} последовательных сканов "
+            f"при лимите {task.max_seq_scans} — требование невыполнимо"
+        )
 
 
 class TestRejectsWrongAnswers:

@@ -22,5 +22,9 @@ tasks:
   - type: quiz
     file: quizzes/sql.query-plans.yaml
     difficulty: 0.7
+  - type: sql
+    file: sql/sql.query-plans.yaml
+    dataset: shop-big
+    difficulty: 0.75
 
 review_after_days: [1, 4, 12, 30]
