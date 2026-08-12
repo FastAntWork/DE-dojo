@@ -139,6 +139,37 @@ class TestHints:
 
         assert "Все подсказки открыты" in last.text
 
+    def test_hint_works_before_stand_is_started(self, client: TestClient) -> None:
+        """Кнопка подсказки не должна молча ничего не делать.
+
+        Раньше счётчик жил внутри стенда, и до его запуска нажатие проходило
+        впустую: человек жал кнопку и не понимал, что сломалось.
+        """
+        with client:
+            opened = client.post(LAB_URL + "/hint")
+
+        assert "Уровень 1" in opened.text
+
+    def test_restarting_stand_does_not_erase_taken_hints(
+        self, client: TestClient, postgres_dsn: str
+    ) -> None:
+        """Иначе подсказку можно прочитать, а штраф снять перезапуском стенда."""
+        prepare_database(postgres_dsn)
+
+        with client:
+            client.post(LAB_URL + "/start", data={"variant": "1"})
+            client.post(LAB_URL + "/hint")
+
+            restarted = client.post(LAB_URL + "/start", data={"variant": "1"})
+            assert "Уровень 1" in restarted.text, "подсказка исчезла после перезапуска стенда"
+
+            lab_dsn = dsn_from_panel(restarted.text)
+            fix_index(lab_dsn)
+            client.post(LAB_URL + "/check")
+
+        rows = attempts(postgres_dsn)
+        assert rows[-1]["hints_used"] == 1, "штраф за подсказку снялся перезапуском стенда"
+
 
 class TestAttemptRecorded:
     def test_passed_lab_lands_in_history(self, client: TestClient, postgres_dsn: str) -> None:

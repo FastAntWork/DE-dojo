@@ -322,12 +322,23 @@ def _run_kata_safely(kata: Kata, answer: str) -> KataResult:
 class Stand:
     variant: int
     dsn: str
-    hints_taken: int = 0
 
 
 def _stands(request: Request) -> dict[str, Stand]:
     stands: dict[str, Stand] = request.app.state.lab_stands
     return stands
+
+
+def _hints_taken(request: Request) -> dict[str, int]:
+    """Сколько подсказок открыто по каждой лабе.
+
+    Хранится отдельно от стенда намеренно. Пока счётчик жил внутри Stand,
+    перезапуск стенда обнулял его — то есть подсказку можно было прочитать, а
+    потом снять штраф, подняв стенд заново. Подсказка обязана стоить баллов,
+    иначе её берут не задумываясь, и лаба перестаёт учить.
+    """
+    taken: dict[str, int] = request.app.state.lab_hints
+    return taken
 
 
 def _lab_or_404(index: ContentIndex, skill_id: str) -> Lab:
@@ -346,7 +357,7 @@ def _lab_context(
 ) -> Any:
     lab = _lab_or_404(index, skill_id)
     stand = _stands(request).get(skill_id)
-    hints = lab.hints[: stand.hints_taken] if stand else ()
+    hints = lab.hints[: _hints_taken(request).get(skill_id, 0)]
 
     # Разбор уезжает в браузер ТОЛЬКО после зачёта. Не «скрыт стилями» и не
     # спрятан в свёрнутый блок, а физически отсутствует в ответе: иначе он
@@ -423,10 +434,14 @@ def _stand_error(exc: Exception) -> str:
 
 @router.post("/skills/{skill_id}/lab/hint", response_class=HTMLResponse)
 async def lab_hint(skill_id: str, request: Request, index: IndexDep) -> HTMLResponse:
+    """Открывает следующую подсказку.
+
+    Работает независимо от того, поднят ли стенд: раньше кнопка при не поднятом
+    стенде молча не делала ничего, и человек жал её, не понимая, что сломалось.
+    """
     lab = _lab_or_404(index, skill_id)
-    stand = _stands(request).get(skill_id)
-    if stand is not None and stand.hints_taken < len(lab.hints):
-        stand.hints_taken += 1
+    taken = _hints_taken(request)
+    taken[skill_id] = min(taken.get(skill_id, 0) + 1, len(lab.hints))
 
     return templates.TemplateResponse(
         request, "_lab_panel.html", _lab_context(request, index, skill_id, result=None)
@@ -449,7 +464,7 @@ async def lab_check(skill_id: str, request: Request, index: IndexDep) -> HTMLRes
     # check.py — отдельный процесс с сетевыми обращениями к базе. В потоке,
     # чтобы длинная проверка не держала весь сервер.
     result = await asyncio.to_thread(run_check, lab, stand.dsn, stand.variant)
-    await _save_lab_attempt(request, index, skill_id, result, stand)
+    await _save_lab_attempt(request, index, skill_id, result, stand.variant)
 
     return templates.TemplateResponse(
         request, "_lab_panel.html", _lab_context(request, index, skill_id, result=result)
@@ -457,7 +472,7 @@ async def lab_check(skill_id: str, request: Request, index: IndexDep) -> HTMLRes
 
 
 async def _save_lab_attempt(
-    request: Request, index: ContentIndex, skill_id: str, result: LabResult, stand: Stand
+    request: Request, index: ContentIndex, skill_id: str, result: LabResult, variant: int
 ) -> None:
     """Пишет попытку. Недоступная база не должна ронять уже сданную лабу."""
     task = ContentIndex.lab_task(index.skill(skill_id))
@@ -466,10 +481,11 @@ async def _save_lab_attempt(
         return
 
     lab = index.labs[skill_id]
+    taken = _hints_taken(request).get(skill_id, 0)
     # Штраф берётся по самой дорогой открытой подсказке, а не суммой: иначе
     # человеку, честно дошедшему до третьего уровня, выгоднее было бы сразу
     # открыть последнюю.
-    penalty = max((h.penalty for h in lab.hints[: stand.hints_taken]), default=0.0)
+    penalty = max((h.penalty for h in lab.hints[:taken]), default=0.0)
     score = round(max(result.score * (1 - penalty), 0.0), 2)
 
     try:
@@ -479,9 +495,9 @@ async def _save_lab_attempt(
                 task_id=task.id,
                 skill_id=skill_id,
                 score=score,
-                hints_used=stand.hints_taken,
+                hints_used=taken,
                 checks={
-                    "variant": stand.variant,
+                    "variant": variant,
                     "checks": [
                         {"name": c.name, "ok": c.ok, "detail": c.detail} for c in result.checks
                     ],

@@ -23,5 +23,10 @@ tasks:
   - type: quiz
     file: quizzes/dwh.scd.yaml
     difficulty: 0.55
+  - type: lab
+    path: labs/scd2-broken
+    variants: 3
+    timeout_min: 45
+    difficulty: 0.75
 
 review_after_days: [1, 4, 12, 30]
