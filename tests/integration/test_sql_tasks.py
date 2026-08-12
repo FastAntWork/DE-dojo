@@ -84,6 +84,83 @@ class TestDataset:
         assert empty_orders >= 1, "нужен заказ без позиций"
 
 
+@pytest.fixture
+async def star(postgres_dsn: str) -> AsyncIterator[asyncpg.Connection[asyncpg.Record]]:
+    async for conn in _dataset_conn(postgres_dsn, "dwh-star"):
+        yield conn
+
+
+class TestStarDataset:
+    """Датасет-звезда обязан содержать ловушки, ради которых он сделан.
+
+    Без них задачи проверяют синтаксис, а не понимание: на данных, где у
+    каждого клиента одна версия и каждая продажа в одной акции, неверное
+    соединение даёт тот же результат, что верное.
+    """
+
+    async def test_has_scd2_history(self, star: asyncpg.Connection[asyncpg.Record]) -> None:
+        multi_version = await star.fetchval(
+            "SELECT count(*) FROM (SELECT customer_id FROM dim_customer "
+            "GROUP BY customer_id HAVING count(*) > 1) x"
+        )
+        single_version = await star.fetchval(
+            "SELECT count(*) FROM (SELECT customer_id FROM dim_customer "
+            "GROUP BY customer_id HAVING count(*) = 1) x"
+        )
+
+        assert multi_version >= 2, "нужны клиенты с несколькими версиями"
+        assert single_version >= 1, "нужен клиент с одной версией: ошибка видна не на всех данных"
+
+    async def test_customer_actually_moved(self, star: asyncpg.Connection[asyncpg.Record]) -> None:
+        """Разрез «город сейчас» и «город тогда» обязан различаться."""
+        changed_city = await star.fetchval(
+            "SELECT count(*) FROM (SELECT customer_id FROM dim_customer "
+            "GROUP BY customer_id HAVING count(DISTINCT city) > 1) x"
+        )
+
+        assert changed_city >= 1
+
+    async def test_sale_in_two_promos(self, star: asyncpg.Connection[asyncpg.Record]) -> None:
+        both = await star.fetchval(
+            "SELECT count(*) FROM (SELECT sale_id FROM bridge_sale_promo "
+            "GROUP BY sale_id HAVING count(*) > 1) x"
+        )
+        without = await star.fetchval(
+            "SELECT count(*) FROM fact_sales s "
+            "WHERE NOT EXISTS (SELECT 1 FROM bridge_sale_promo b WHERE b.sale_id = s.sale_id)"
+        )
+
+        assert both >= 1, "нужна продажа в двух акциях: на ней ловится задвоение"
+        assert without >= 1, "нужна продажа без акций: на ней ловится INNER JOIN с мостом"
+
+    async def test_bridge_join_really_inflates_revenue(
+        self, star: asyncpg.Connection[asyncpg.Record]
+    ) -> None:
+        """Ловушка обязана срабатывать: иначе задача про мост ничего не проверяет."""
+        honest = await star.fetchval("SELECT sum(revenue) FROM fact_sales")
+        via_bridge = await star.fetchval(
+            "SELECT sum(s.revenue) FROM fact_sales s "
+            "JOIN bridge_sale_promo b ON b.sale_id = s.sale_id"
+        )
+
+        assert via_bridge != honest, "соединение с мостом обязано менять общую сумму"
+
+    async def test_stock_is_semiadditive(self, star: asyncpg.Connection[asyncpg.Record]) -> None:
+        dates = await star.fetchval("SELECT count(DISTINCT date_key) FROM fact_stock_snapshot")
+
+        assert dates >= 2, "нужны остатки минимум на две даты, иначе полуаддитивность не видна"
+
+    async def test_holiday_is_not_derivable_from_date(
+        self, star: asyncpg.Connection[asyncpg.Record]
+    ) -> None:
+        """Праздник в будний день — то, ради чего заводят измерение дат."""
+        weekday_holiday = await star.fetchval(
+            "SELECT count(*) FROM dim_date WHERE is_holiday AND NOT is_weekend"
+        )
+
+        assert weekday_holiday >= 1
+
+
 class TestReferenceSolutions:
     """Эталон обязан проходить собственную проверку — во всех файлах задач."""
 

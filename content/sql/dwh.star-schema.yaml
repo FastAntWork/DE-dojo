@@ -1,0 +1,170 @@
+# Задачи к узлу dwh.star-schema на датасете dwh-star.
+#
+# Эталонное решение не отдаётся клиенту: ожидаемый результат вычисляется на
+# сервере запуском solution, а ответ пользователя сравнивается с ним.
+#
+# Задачи построены вокруг ошибок моделирования, а не вокруг синтаксиса:
+# задвоение через мост «многие ко многим», полуаддитивные меры, факт без мер,
+# неаддитивные отношения. Все они дают правдоподобные неверные числа — то
+# есть именно то, что потом ищут неделями.
+
+dataset: dwh-star
+
+tasks:
+  - id: star-revenue-by-category
+    title: "Выручка по категориям товаров"
+    prompt: |
+      Посчитай суммарную выручку по каждой категории товаров.
+      Колонки: category, revenue. Порядок не важен.
+    solution: |
+      SELECT p.category, sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN dim_product p ON p.product_key = s.product_key
+      GROUP BY p.category
+    ordered: false
+    hint: "Обычное соединение факта с измерением по суррогатному ключу."
+
+  - id: star-revenue-by-current-city
+    title: "Выручка по ТЕКУЩЕМУ городу клиента"
+    prompt: |
+      Посчитай выручку в разрезе города, в котором клиент живёт СЕЙЧАС.
+      Клиент мог переехать — учитывать надо последнюю версию.
+      Колонки: city, revenue. Порядок не важен.
+    solution: |
+      SELECT cur.city, sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN dim_customer ver ON ver.customer_key = s.customer_key
+      JOIN dim_customer cur
+        ON cur.customer_id = ver.customer_id AND cur.is_current
+      GROUP BY cur.city
+    ordered: false
+    hint: |
+      Факт ссылается на версию, действовавшую в момент продажи. Чтобы получить
+      текущее состояние, нужно от неё перейти к актуальной версии того же
+      естественного ключа.
+
+  - id: star-revenue-by-city-at-sale-time
+    title: "Выручка по городу НА МОМЕНТ продажи"
+    prompt: |
+      Та же выручка, но в разрезе города, где клиент находился в момент
+      покупки. Разница с предыдущей задачей — вся суть SCD типа 2.
+      Колонки: city, revenue. Порядок не важен.
+    solution: |
+      SELECT c.city, sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN dim_customer c ON c.customer_key = s.customer_key
+      GROUP BY c.city
+    ordered: false
+    hint: |
+      Здесь ничего искать не надо: суррогатный ключ в факте уже указывает на
+      нужную версию. Ради этого его и заводят.
+
+  - id: star-double-count-trap
+    title: "Число клиентов по городам без задвоения"
+    prompt: |
+      Посчитай, сколько РАЗНЫХ клиентов совершали покупки, в разрезе города на
+      момент покупки. Клиент, купивший дважды, считается один раз; клиент,
+      переехавший между покупками, попадёт в оба города.
+      Колонки: city, customers. Порядок не важен.
+    solution: |
+      SELECT c.city, count(DISTINCT c.customer_id) AS customers
+      FROM fact_sales s
+      JOIN dim_customer c ON c.customer_key = s.customer_key
+      GROUP BY c.city
+    ordered: false
+    hint: |
+      Считать надо естественный ключ, а не суррогатный: у одного клиента
+      несколько версий, и по суррогатному он превратится в нескольких.
+
+  - id: star-promo-revenue-trap
+    title: "Выручка по акциям"
+    prompt: |
+      Посчитай выручку в разрезе акций. Одна продажа может относиться к
+      нескольким акциям — тогда она учитывается в каждой из них.
+      Колонки: title, revenue. Порядок не важен.
+    solution: |
+      SELECT pr.title, sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN bridge_sale_promo b ON b.sale_id = s.sale_id
+      JOIN dim_promo pr ON pr.promo_key = b.promo_key
+      GROUP BY pr.title
+    ordered: false
+    hint: |
+      Соединение с мостом размножает строки факта. Здесь это правильно — но
+      суммировать общую выручку после такого соединения уже нельзя.
+
+  - id: star-total-revenue-with-bridge
+    title: "Общая выручка при наличии моста"
+    prompt: |
+      Посчитай ОБЩУЮ выручку по всем продажам — одним числом. Обрати внимание:
+      наивное соединение с мостом акций даст завышенный результат, а продажи
+      без акций из него выпадут вовсе.
+      Колонки: revenue. Одна строка.
+    solution: |
+      SELECT sum(revenue) AS revenue FROM fact_sales
+    ordered: false
+    hint: |
+      Самый короткий ответ здесь и самый верный: для общей суммы мост не нужен
+      вовсе. Задача проверяет, не потянулись ли вы соединять всё подряд.
+
+  - id: star-stock-semiadditive
+    title: "Остаток на последнюю дату"
+    prompt: |
+      Выведи остаток каждого товара на последнюю дату, за которую есть данные.
+      Складывать остатки по датам нельзя — мера полуаддитивна.
+      Колонки: title, on_hand. Порядок не важен.
+    solution: |
+      SELECT p.title, st.on_hand
+      FROM fact_stock_snapshot st
+      JOIN dim_product p ON p.product_key = st.product_key
+      WHERE st.date_key = (SELECT max(date_key) FROM fact_stock_snapshot)
+    ordered: false
+    hint: |
+      Остаток можно складывать по товарам, но не по времени: сумма остатков за
+      три дня не значит ничего. Нужен срез на одну дату.
+
+  - id: star-factless-visits
+    title: "Посещения по каналам"
+    prompt: |
+      Посчитай число посещений в разрезе канала. Числовых мер в этом факте нет
+      вовсе — считать нужно строки.
+      Колонки: channel, visits. Порядок не важен.
+    solution: |
+      SELECT channel, count(*) AS visits
+      FROM fact_visits
+      GROUP BY channel
+    ordered: false
+    hint: "Факт без мер: сам факт события и есть мера."
+
+  - id: star-margin-nonadditive
+    title: "Маржинальность по категориям"
+    prompt: |
+      Посчитай маржинальность в процентах по каждой категории:
+      (выручка минус себестоимость) делить на выручку, умножить на 100,
+      округлить до двух знаков.
+      Колонки: category, margin_pct. Порядок не важен.
+    solution: |
+      SELECT p.category,
+             round((sum(s.revenue) - sum(s.cost)) / sum(s.revenue) * 100, 2) AS margin_pct
+      FROM fact_sales s
+      JOIN dim_product p ON p.product_key = s.product_key
+      GROUP BY p.category
+    ordered: false
+    hint: |
+      Отношения неаддитивны: среднее из процентов по строкам не равно проценту
+      от сумм. Сначала суммируем числитель и знаменатель, делим в конце.
+
+  - id: star-weekend-and-holiday
+    title: "Выручка в выходные и праздники"
+    prompt: |
+      Посчитай выручку за дни, которые являются выходными ИЛИ праздниками.
+      Колонки: revenue. Одна строка.
+    solution: |
+      SELECT sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN dim_date d ON d.date_key = s.date_key
+      WHERE d.is_weekend OR d.is_holiday
+    ordered: false
+    hint: |
+      Признак праздника невозможно вывести из самой даты — он зависит от
+      страны и года. Ради таких атрибутов измерение дат и заводят.
