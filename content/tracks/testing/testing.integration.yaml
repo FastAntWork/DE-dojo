@@ -1,0 +1,27 @@
+id: testing.integration
+title: "Интеграционные тесты: настоящая база в контейнере"
+track: testing
+level: 4
+phase: 5
+estimated_hours: 6
+prereq: [testing.unit, docker.basics]
+job_tags: [testing, docker, postgresql, ci, python]
+
+objectives:
+  - "Назвать класс ошибок, который модульные тесты не ловят в принципе"
+  - "Объяснить, почему подмена базы заглушкой не заменяет интеграционный тест"
+  - "Выбрать способ изоляции между тестами и обосновать выбор по цене"
+  - "Проверить миграции тестом и сказать, что именно в них проверяется"
+  - "Сделать интеграционные тесты достаточно быстрыми, чтобы их запускали"
+  - "Определить границу: что тестировать модульно, а что интеграционно"
+
+theory:
+  read: theory/testing/testing.integration.md
+  rag_scope: []
+
+tasks:
+  - type: quiz
+    file: quizzes/testing.integration.yaml
+    difficulty: 0.65
+
+review_after_days: [1, 4, 12, 30]

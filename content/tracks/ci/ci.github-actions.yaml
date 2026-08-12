@@ -1,0 +1,27 @@
+id: ci.github-actions
+title: "CI: автоматические проверки на каждый коммит"
+track: ci
+level: 3
+phase: 5
+estimated_hours: 5
+prereq: [git.basics, docker.basics]
+job_tags: [ci, github-actions, devops, testing]
+
+objectives:
+  - "Объяснить, зачем нужен CI, если тесты можно запускать локально"
+  - "Прочитать workflow GitHub Actions и назвать, что и когда в нём выполняется"
+  - "Выбрать, что проверять на каждый коммит, а что по расписанию"
+  - "Ускорить сборку кешированием и объяснить, чем опасен неверный ключ кеша"
+  - "Объяснить, почему секреты в CI требуют отдельного обращения"
+  - "Найти причину «локально работает, в CI падает»"
+
+theory:
+  read: theory/ci/ci.github-actions.md
+  rag_scope: []
+
+tasks:
+  - type: quiz
+    file: quizzes/ci.github-actions.yaml
+    difficulty: 0.55
+
+review_after_days: [1, 4, 12, 30]
