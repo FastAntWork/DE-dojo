@@ -23,6 +23,10 @@ tasks:
   - type: quiz
     file: quizzes/dwh.scd.yaml
     difficulty: 0.55
+  - type: sql
+    file: sql/dwh.scd.yaml
+    dataset: dwh-star
+    difficulty: 0.7
   - type: lab
     path: labs/scd2-broken
     variants: 3

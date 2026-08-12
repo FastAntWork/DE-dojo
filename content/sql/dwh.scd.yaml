@@ -1,0 +1,138 @@
+# Задачи к узлу dwh.scd на датасете dwh-star.
+#
+# Лаба scd2-broken учит чинить развалившуюся историю. Эти задачи — про то, как
+# ей ПОЛЬЗОВАТЬСЯ: соединение на момент события, срез на дату, различение
+# естественного и суррогатного ключа. Ошибки здесь дают правдоподобные числа,
+# поэтому проверяются они не рассуждением, а сравнением с эталоном.
+
+dataset: dwh-star
+
+tasks:
+  - id: scd-current-versions
+    title: "Актуальные версии клиентов"
+    prompt: |
+      Выведи актуальную версию каждого клиента.
+      Колонки: customer_id, name, city, segment. Порядок не важен.
+    solution: |
+      SELECT customer_id, name, city, segment
+      FROM dim_customer
+      WHERE is_current
+    ordered: false
+    hint: "Признак актуальности для того и заведён, чтобы не сравнивать даты."
+
+  - id: scd-version-count
+    title: "Сколько версий у каждого клиента"
+    prompt: |
+      Для каждого клиента посчитай число версий в измерении.
+      Колонки: customer_id, versions. Порядок не важен.
+    solution: |
+      SELECT customer_id, count(*) AS versions
+      FROM dim_customer
+      GROUP BY customer_id
+    ordered: false
+    hint: |
+      Группировать надо по естественному ключу: суррогатный уникален у каждой
+      версии, и по нему получится по единице у всех.
+
+  - id: scd-as-of-date
+    title: "Срез измерения на дату"
+    prompt: |
+      Выведи версии клиентов, действовавшие на 2026-02-10.
+      Интервал полуоткрытый: версия действует с valid_from включительно до
+      valid_to не включая; valid_to IS NULL означает «действует сейчас».
+      Колонки: customer_id, city, segment. Порядок не важен.
+    solution: |
+      SELECT customer_id, city, segment
+      FROM dim_customer
+      WHERE valid_from <= DATE '2026-02-10'
+        AND (valid_to IS NULL OR valid_to > DATE '2026-02-10')
+    ordered: false
+    hint: |
+      Открытый интервал требует отдельной проверки на NULL: сравнение с NULL
+      даёт неизвестность, и строка молча выпадет.
+
+  - id: scd-point-in-time-join
+    title: "Выручка по сегменту на момент продажи"
+    prompt: |
+      Посчитай выручку в разрезе сегмента клиента, действовавшего в момент
+      покупки. Соединяй по естественному ключу и попаданию даты продажи в
+      интервал действия версии — не пользуясь готовым суррогатным ключом
+      в факте.
+      Колонки: segment, revenue. Порядок не важен.
+    solution: |
+      SELECT c.segment, sum(s.revenue) AS revenue
+      FROM fact_sales s
+      JOIN dim_customer ver ON ver.customer_key = s.customer_key
+      JOIN dim_customer c
+        ON c.customer_id = ver.customer_id
+       AND s.date_key >= c.valid_from
+       AND (c.valid_to IS NULL OR s.date_key < c.valid_to)
+      GROUP BY c.segment
+    ordered: false
+    hint: |
+      Соединение на момент события: естественный ключ плюс попадание даты в
+      интервал. Если забыть условие по интервалу, каждая продажа найдёт все
+      версии клиента и выручка задвоится.
+
+  - id: scd-surrogate-vs-natural
+    title: "Продажи клиента по всем его версиям"
+    prompt: |
+      Для клиента с естественным ключом 1 выведи все его продажи вместе с
+      городом, действовавшим на момент каждой продажи.
+      Колонки: sale_id, city, revenue. Порядок не важен.
+    solution: |
+      SELECT s.sale_id, c.city, s.revenue
+      FROM fact_sales s
+      JOIN dim_customer c ON c.customer_key = s.customer_key
+      WHERE c.customer_id = 1
+    ordered: false
+    hint: |
+      Фильтровать надо по естественному ключу, а соединять — по суррогатному:
+      он уже указывает на нужную версию.
+
+  - id: scd-changed-attributes
+    title: "Клиенты, у которых менялся город"
+    prompt: |
+      Найди клиентов, у которых в истории встречается больше одного города.
+      Колонки: customer_id. Порядок не важен.
+    solution: |
+      SELECT customer_id
+      FROM dim_customer
+      GROUP BY customer_id
+      HAVING count(DISTINCT city) > 1
+    ordered: false
+    hint: "Считать надо разные значения атрибута, а не число версий."
+
+  - id: scd-open-interval-check
+    title: "Сколько версий и сколько из них актуальных"
+    prompt: |
+      Для каждого клиента выведи общее число версий и число версий с поднятым
+      признаком актуальности.
+      Колонки: customer_id, versions, current_versions. Порядок не важен.
+    solution: |
+      SELECT customer_id,
+             count(*) AS versions,
+             count(*) FILTER (WHERE is_current) AS current_versions
+      FROM dim_customer
+      GROUP BY customer_id
+    ordered: false
+    hint: |
+      То же выражение лежит в основе главной проверки любого SCD-измерения:
+      обернув его в HAVING count(*) FILTER (WHERE is_current) <> 1, получаем
+      запрос, находящий клиентов с двумя открытыми версиями. Здесь считаем без
+      фильтра: проверка, эталон которой всегда пуст, не проверяет ничего —
+      её прошёл бы любой запрос, ничего не находящий.
+
+  - id: scd-history-of-one-customer
+    title: "История клиента одной таблицей"
+    prompt: |
+      Выведи полную историю клиента 2: все версии с интервалами, по возрастанию
+      даты начала.
+      Колонки: valid_from, valid_to, city, segment. Порядок ВАЖЕН.
+    solution: |
+      SELECT valid_from, valid_to, city, segment
+      FROM dim_customer
+      WHERE customer_id = 2
+      ORDER BY valid_from
+    ordered: true
+    hint: "Порядок задаётся датой начала версии — единственным источником истины."
