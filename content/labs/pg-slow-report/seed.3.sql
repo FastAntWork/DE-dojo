@@ -20,7 +20,7 @@ SELECT setseed(0.17);
 INSERT INTO events (tenant_id, created_at, kind, payload)
 SELECT
     CASE WHEN random() < 0.02 THEN 42 ELSE 1 + (random() * 200)::integer END,
-    TIMESTAMPTZ '2025-06-01' + (random() * 300 || ' days')::interval,
+    TIMESTAMPTZ '2025-06-01' + random() * 300 * interval '1 day',
     (ARRAY['login', 'logout', 'purchase', 'view', 'error'])[1 + floor(random() * 5)::integer],
     repeat('x', 40)
 FROM generate_series(1, 200000);

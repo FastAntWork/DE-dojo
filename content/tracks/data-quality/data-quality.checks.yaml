@@ -23,5 +23,10 @@ tasks:
   - type: quiz
     file: quizzes/data-quality.checks.yaml
     difficulty: 0.7
+  - type: lab
+    path: labs/dq-write-checks
+    variants: 1
+    timeout_min: 60
+    difficulty: 0.7
 
 review_after_days: [1, 4, 12, 30]
