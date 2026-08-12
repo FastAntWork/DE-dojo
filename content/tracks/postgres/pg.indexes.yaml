@@ -1,0 +1,27 @@
+id: pg.indexes
+title: "PostgreSQL: индексы, селективность, покрывающие"
+track: postgres
+level: 4
+phase: 2
+estimated_hours: 8
+prereq: [sql.query-plans]
+job_tags: [postgresql, sql, performance, dwh]
+
+objectives:
+  - "Выбрать тип индекса под задачу и обосновать выбор"
+  - "Определить порядок колонок в составном индексе и объяснить правило"
+  - "Назвать пять причин, по которым индекс существует, но не используется"
+  - "Объяснить, что такое селективность, и предсказать, когда индекс не поможет"
+  - "Добиться Index Only Scan и назвать условие, без которого он не работает"
+  - "Найти лишние индексы и оценить цену их существования"
+
+theory:
+  read: theory/postgres/pg.indexes.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/pg.indexes.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

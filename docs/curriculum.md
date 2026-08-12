@@ -52,8 +52,8 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 | `pg.basics` | `sql.core.select` | есть |
 | `rdbms.theory.acid` | `pg.basics` | есть |
 | `sql.query-plans` | `sql.window-functions`, `pg.basics` | есть |
-| `pg.indexes` | `sql.query-plans` | **новый** — B-tree, hash, GIN, покрывающие, селективность |
-| `pg.partitioning` | `pg.indexes` | **новый** — секционирование, pruning |
+| `pg.indexes` | `sql.query-plans` | есть |
+| `pg.partitioning` | `pg.indexes` | есть |
 | `dwh.normal-forms` | `sql.joins` | есть |
 
 Блок «Оптимизация» роадмапа (хеш-таблицы, индексы, партиции, дистрибуция)
@@ -70,8 +70,8 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 | `dwh.data-vault` | `dwh.star-schema` | есть |
 | `dwh.scd` | `dwh.star-schema` | есть |
 | `storage.formats` | `dwh.concepts` | есть |
-| `clickhouse.basics` | `sql.query-plans`, `storage.formats` | **новый** — MergeTree, партиции, материализованные вьюхи |
-| `mpp.greenplum` | `sql.query-plans`, `dwh.star-schema` | есть — предпосылка `pg.partitioning` заменена на `sql.query-plans` до её появления |
+| `clickhouse.basics` | `sql.query-plans`, `storage.formats` | есть |
+| `mpp.greenplum` | `pg.partitioning`, `dwh.star-schema` | есть |
 
 ## Фаза 4. Обработка и оркестрация (недели 15–22)
 

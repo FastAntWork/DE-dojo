@@ -4,7 +4,7 @@ track: mpp
 level: 4
 phase: 3
 estimated_hours: 8
-prereq: [sql.query-plans, dwh.star-schema]
+prereq: [pg.partitioning, dwh.star-schema]
 job_tags: [greenplum, mpp, postgresql, dwh, sql]
 
 objectives:

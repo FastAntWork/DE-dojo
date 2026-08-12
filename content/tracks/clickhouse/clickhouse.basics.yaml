@@ -1,0 +1,27 @@
+id: clickhouse.basics
+title: "ClickHouse: MergeTree, ключ сортировки, материализованные представления"
+track: clickhouse
+level: 4
+phase: 3
+estimated_hours: 8
+prereq: [sql.query-plans, storage.formats]
+job_tags: [clickhouse, olap, sql, dwh, analytics]
+
+objectives:
+  - "Объяснить, что делает MergeTree с данными при вставке и в фоне"
+  - "Выбрать ключ сортировки и объяснить, чем он важнее индекса в привычном смысле"
+  - "Отличить ключ партиционирования от ключа сортировки и не перепутать их роли"
+  - "Назвать три вещи, которые в ClickHouse работают не так, как в PostgreSQL, и почему"
+  - "Объяснить, зачем нужны материализованные представления и чем они опасны"
+  - "Понять, почему ReplacingMergeTree не гарантирует отсутствие дублей в запросе"
+
+theory:
+  read: theory/clickhouse/clickhouse.basics.md
+  rag_scope: [clickhouse-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/clickhouse.basics.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]

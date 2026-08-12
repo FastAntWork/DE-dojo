@@ -1,0 +1,27 @@
+id: pg.partitioning
+title: "PostgreSQL: секционирование и отсечение партиций"
+track: postgres
+level: 4
+phase: 2
+estimated_hours: 6
+prereq: [pg.indexes]
+job_tags: [postgresql, dwh, performance, etl]
+
+objectives:
+  - "Назвать три настоящие причины секционировать таблицу и одну ложную"
+  - "Выбрать способ секционирования и ключ под характер запросов"
+  - "Проверить по плану, что отсечение партиций сработало"
+  - "Объяснить, почему уникальность и внешние ключи в секционированных таблицах работают иначе"
+  - "Организовать удаление старых данных через отсоединение партиции"
+  - "Назвать признаки того, что партиций стало слишком много"
+
+theory:
+  read: theory/postgres/pg.partitioning.md
+  rag_scope: [postgres-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/pg.partitioning.yaml
+    difficulty: 0.7
+
+review_after_days: [1, 4, 12, 30]
