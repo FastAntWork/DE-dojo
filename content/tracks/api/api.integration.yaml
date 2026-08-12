@@ -23,5 +23,9 @@ tasks:
   - type: quiz
     file: quizzes/api.integration.yaml
     difficulty: 0.65
+  - type: kata
+    path: katas/fetch-all-pages
+    timeout_sec: 300
+    difficulty: 0.7
 
 review_after_days: [1, 4, 12, 30]

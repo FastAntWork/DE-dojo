@@ -35,6 +35,19 @@ EXPECTED_EDGES = sum(len(skill.prereq) for skill in CONTENT)
 EXPECTED_TASKS = sum(len(skill.tasks) for skill in CONTENT)
 
 
+def a_leaf_node() -> str:
+    """Узел, на который никто не ссылается как на предпосылку.
+
+    Ищется по графу, а не задан именем: узел, бывший листом вчера, сегодня
+    оказывается чьей-то предпосылкой, и тест начинает падать на ровном месте —
+    причём с ошибкой про целостность графа, а не про то, что он проверяет.
+    """
+    referenced = {prereq for skill in CONTENT for prereq, _ in skill.prereq}
+    leaves = sorted(skill.id for skill in CONTENT if skill.id not in referenced)
+    assert leaves, "в графе не осталось листьев — проверять снятие узла не на чем"
+    return leaves[0]
+
+
 async def connect(dsn: str) -> asyncpg.Connection[asyncpg.Record]:
     return await asyncpg.connect(dsn)
 
@@ -141,7 +154,8 @@ class TestContentSync:
         skills = load_skills(REPO_ROOT / "content", REPO_ROOT)
         # Убираем лист графа: на него никто не ссылается как на предпосылку,
         # иначе sync справедливо упадёт с UnknownPrereqError.
-        without_leaf = [s for s in skills if s.id != "testing.unit"]
+        leaf = a_leaf_node()
+        without_leaf = [s for s in skills if s.id != leaf]
 
         conn = await connect(postgres_dsn)
         try:
@@ -151,7 +165,7 @@ class TestContentSync:
                 report = await sync_skills(conn, without_leaf)
 
             deprecated_at = await conn.fetchval(
-                "SELECT deprecated_at FROM skills WHERE id = 'testing.unit'"
+                "SELECT deprecated_at FROM skills WHERE id = $1", leaf
             )
             still_there = await count(conn, "skills")
         finally:
@@ -165,7 +179,8 @@ class TestContentSync:
     async def test_returned_node_is_restored(self, postgres_dsn: str) -> None:
         await migrate(postgres_dsn)
         skills = load_skills(REPO_ROOT / "content", REPO_ROOT)
-        without_leaf = [s for s in skills if s.id != "testing.unit"]
+        leaf = a_leaf_node()
+        without_leaf = [s for s in skills if s.id != leaf]
 
         conn = await connect(postgres_dsn)
         try:
@@ -177,7 +192,7 @@ class TestContentSync:
                 report = await sync_skills(conn, skills)
 
             deprecated_at = await conn.fetchval(
-                "SELECT deprecated_at FROM skills WHERE id = 'testing.unit'"
+                "SELECT deprecated_at FROM skills WHERE id = $1", leaf
             )
         finally:
             await conn.close()
@@ -302,4 +317,10 @@ class TestGraphIntegrity:
         finally:
             await conn.close()
 
-        assert [row["id"] for row in roots] == ["python.core", "sql.core.select"]
+        # Проверяется утверждение, а не запомненный список: корни появляются и
+        # исчезают при пополнении графа, а требование «начать можно» — нет.
+        root_ids = [row["id"] for row in roots]
+        assert root_ids, "в графе нет ни одного узла без предпосылок"
+        by_id = {skill.id: skill for skill in skills}
+        for root_id in root_ids:
+            assert by_id[root_id].prereq == [], f"{root_id} объявлен корнем, но имеет prereq"

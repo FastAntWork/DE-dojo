@@ -179,6 +179,52 @@ def chunked(items, size):
         assert "/work:ro" in args
 
 
+def all_kata_names() -> list[str]:
+    """Имена всех кат в репозитории.
+
+    Список берётся с диска, а не перечисляется: новая ката должна попадать под
+    проверку автоматически, иначе однажды в графе окажется задача, эталон
+    которой не проходит собственные тесты.
+    """
+    return sorted(path.name for path in (CONTENT / "katas").iterdir() if path.is_dir())
+
+
+class TestEveryKataIsSolvable:
+    """Инвариант на все каты сразу, а не только на первую написанную."""
+
+    @pytest.mark.parametrize("name", all_kata_names())
+    def test_reference_solution_passes(self, name: str) -> None:
+        kata = load_kata(CONTENT, name)
+        solution = (CONTENT / "katas" / name / "solution.py").read_text(encoding="utf-8")
+
+        result = run(kata, solution, timeout_sec=60)
+
+        assert result.passed, f"{name}: " + str([c.name for c in result.cases if not c.passed])
+        assert result.score == 1.0
+
+    @pytest.mark.parametrize("name", all_kata_names())
+    def test_starter_fails(self, name: str) -> None:
+        """Заготовка обязана падать: иначе задача решается ничегонеделанием."""
+        kata = load_kata(CONTENT, name)
+        starter = (CONTENT / "katas" / name / "starter.py").read_text(encoding="utf-8")
+
+        result = run(kata, starter, timeout_sec=60)
+
+        assert result.passed is False, f"{name}: заготовка проходит тесты"
+
+    @pytest.mark.parametrize("name", all_kata_names())
+    def test_hidden_tests_outnumber_public(self, name: str) -> None:
+        """Скрытых проверок должно быть больше: открытые — это примеры."""
+        kata = load_kata(CONTENT, name)
+        solution = (CONTENT / "katas" / name / "solution.py").read_text(encoding="utf-8")
+
+        result = run(kata, solution, timeout_sec=60)
+
+        hidden = sum(1 for case in result.cases if case.hidden)
+        public = sum(1 for case in result.cases if not case.hidden)
+        assert hidden > public, f"{name}: скрытых {hidden}, открытых {public}"
+
+
 class TestReportParsing:
     def test_marks_hidden_tests(self) -> None:
         xml = """<testsuites><testsuite>

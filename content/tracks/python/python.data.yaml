@@ -23,5 +23,9 @@ tasks:
   - type: quiz
     file: quizzes/python.data.yaml
     difficulty: 0.6
+  - type: kata
+    path: katas/parse-messy-csv
+    timeout_sec: 300
+    difficulty: 0.65
 
 review_after_days: [1, 4, 12, 30]
