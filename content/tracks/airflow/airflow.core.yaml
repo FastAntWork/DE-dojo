@@ -4,7 +4,7 @@ track: airflow
 level: 3
 phase: 4
 estimated_hours: 8
-prereq: [python.core]
+prereq: [python.data, docker.basics]
 soft_prereq: [dbt.core]
 job_tags: [airflow, etl, orchestration, python]
 

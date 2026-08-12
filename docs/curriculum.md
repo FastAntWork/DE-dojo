@@ -37,10 +37,10 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 | `sql.subqueries-cte` | `sql.joins`, `sql.aggregates` | есть |
 | `sql.window-functions` | `sql.subqueries-cte` | есть |
 | `python.core` | — | есть |
-| `python.data` | `python.core` | **новый** — файлы, CSV/JSON, requests, pandas-минимум |
-| `git.basics` | — | **новый** |
-| `linux.terminal` | — | **новый** |
-| `docker.basics` | `linux.terminal` | **новый** |
+| `python.data` | `python.core` | есть |
+| `git.basics` | — | есть |
+| `linux.terminal` | — | есть |
+| `docker.basics` | `linux.terminal` | есть |
 
 Роадмап отводит на «SQL с нуля до оконок» и «Python базовый» по 1–2 месяца
 каждый. У нас они идут параллельно и сжаты: у тебя уже есть база по обоим.
@@ -77,14 +77,14 @@ end-to-end тесты, а Spark, dbt, моделирование хранили�
 
 | Узел | Предпосылки | Статус |
 |---|---|---|
-| `spark.core` | `python.core`, `storage.formats` | есть — предпосылка `python.data` заменена на `python.core` до её появления |
+| `spark.core` | `python.data`, `storage.formats` | есть |
 | `spark.optimization` | `spark.core` | есть |
-| `airflow.core` | `python.core` | есть — предпосылки `python.data` и `docker.basics` заменены до их появления |
+| `airflow.core` | `python.data`, `docker.basics` | есть |
 | `airflow.idempotency` | `airflow.core` | есть |
 | `dbt.core` | `dwh.star-schema`, `sql.subqueries-cte` | есть |
 | `data-quality.checks` | `dbt.core`, `airflow.idempotency` | есть |
 | `data-quality.incidents` | `data-quality.checks` | есть |
-| `api.integration` | `python.data` | **новый** — REST, пагинация, ретраи, лимиты |
+| `api.integration` | `python.data` | есть |
 
 Data Quality добавлен по итогам разбора вакансий: встречается в 63% и почти
 всегда как обязанность, а не пожелание. Ни в исходном ТЗ, ни в роадмапе этой

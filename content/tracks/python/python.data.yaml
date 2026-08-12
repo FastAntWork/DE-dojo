@@ -1,0 +1,27 @@
+id: python.data
+title: "Python для данных: файлы, CSV, JSON, pandas-минимум"
+track: python
+level: 3
+phase: 1
+estimated_hours: 8
+prereq: [python.core]
+job_tags: [python, pandas, etl, csv, json]
+
+objectives:
+  - "Прочитать файл, который больше доступной памяти, и объяснить приём"
+  - "Назвать три ловушки CSV и способ защиты от каждой"
+  - "Разобрать вложенный JSON и развернуть его в плоскую таблицу"
+  - "Объяснить, почему у pandas тип object и чем это грозит"
+  - "Выбрать между pandas, потоковой обработкой и SQL по объёму данных"
+  - "Прочитать и записать Parquet и сказать, что при этом происходит со схемой"
+
+theory:
+  read: theory/python/python.data.md
+  rag_scope: [pandas-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/python.data.yaml
+    difficulty: 0.6
+
+review_after_days: [1, 4, 12, 30]

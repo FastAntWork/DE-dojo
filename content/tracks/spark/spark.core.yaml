@@ -4,7 +4,7 @@ track: spark
 level: 4
 phase: 4
 estimated_hours: 10
-prereq: [python.core, storage.formats]
+prereq: [python.data, storage.formats]
 job_tags: [spark, pyspark, etl, bigdata, python]
 
 objectives:

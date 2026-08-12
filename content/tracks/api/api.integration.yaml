@@ -1,0 +1,27 @@
+id: api.integration
+title: "Интеграция с API: пагинация, ретраи, лимиты"
+track: api
+level: 3
+phase: 4
+estimated_hours: 6
+prereq: [python.data]
+job_tags: [python, api, rest, etl, integration]
+
+objectives:
+  - "Забрать все страницы данных и объяснить, чем курсорная пагинация надёжнее смещения"
+  - "Отличить ошибку, которую надо повторять, от той, которую повторять бессмысленно"
+  - "Реализовать повтор с экспоненциальной задержкой и объяснить роль случайного разброса"
+  - "Соблюсти ограничение частоты запросов и обработать ответ 429"
+  - "Сделать выгрузку из API идемпотентной"
+  - "Назвать, где хранить ключ доступа и что делать при его утечке"
+
+theory:
+  read: theory/api/api.integration.md
+  rag_scope: []
+
+tasks:
+  - type: quiz
+    file: quizzes/api.integration.yaml
+    difficulty: 0.65
+
+review_after_days: [1, 4, 12, 30]
