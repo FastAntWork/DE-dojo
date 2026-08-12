@@ -13,14 +13,18 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import typer
 
 from dojo_cli.stack import (
     is_port_free,
     preflight_ports,
     read_env,
     retarget_url,
+    serve,
     set_env_value,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def free_port() -> int:
@@ -98,6 +102,42 @@ class TestPortProbe:
             sock.bind(("127.0.0.1", 0))
             port = int(sock.getsockname()[1])
         assert is_port_free(port) is True
+
+
+class TestServeRefusesBusyPort:
+    """Регрессия из жизни, обнаруженная при сквозной проверке лаб.
+
+    Занятый порт здесь опаснее, чем кажется: uvicorn не сможет его занять и
+    завершится, а отвечать на этом адресе продолжит СТАРЫЙ процесс с прежним
+    кодом. Приложение выглядит работающим, но новых узлов и лаб в нём нет —
+    и понять это по внешнему виду невозможно.
+    """
+
+    def test_exits_with_message_instead_of_silent_start(
+        self, busy_port: int, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(typer.Exit) as info:
+            serve(port=busy_port, open_window=False)
+
+        assert info.value.exit_code == 1
+        output = capsys.readouterr().out
+        assert str(busy_port) in output
+        assert "занят" in output
+
+    def test_free_port_is_not_refused(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Проверка не должна мешать нормальному запуску.
+
+        Сам uvicorn не поднимаем: тест про решение «запускать или нет», а не
+        про сервер.
+        """
+        started: list[int] = []
+        monkeypatch.setattr(
+            "uvicorn.run", lambda *_args, **kwargs: started.append(int(kwargs["port"]))
+        )
+
+        serve(repo=REPO_ROOT, port=free_port(), open_window=False)
+
+        assert len(started) == 1
 
 
 class TestPreflight:

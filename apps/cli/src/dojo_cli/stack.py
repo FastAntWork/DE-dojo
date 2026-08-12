@@ -384,6 +384,20 @@ def serve(
     root = repo.resolve() if repo else find_repo_root()
     os.environ.setdefault("CONTENT_DIR", str(root / "content"))
 
+    # Занятый порт здесь опаснее, чем кажется. Uvicorn не сможет его занять и
+    # завершится, а на этом адресе продолжит отвечать СТАРЫЙ запущенный ранее
+    # процесс — с прежним кодом и прежним контентом. Человек открывает
+    # приложение, видит его работающим и не понимает, почему новых узлов и лаб
+    # там нет. Поэтому останавливаемся явно и говорим, что делать.
+    if not is_port_free(port):
+        console.print(f"\n  [red]Порт {port} уже занят.[/red]")
+        console.print("  Скорее всего, приложение уже запущено — тогда открой его по адресу")
+        console.print(f"  [bold]http://127.0.0.1:{port}[/bold], а этот запуск не нужен.")
+        console.print("\n  Если это старый зависший процесс, останови его:")
+        console.print("    [dim]pkill -f 'dojo serve'[/dim]")
+        console.print(f"  Либо запусти на другом порту: [dim]dojo serve --port {port + 1}[/dim]\n")
+        raise typer.Exit(code=1)
+
     console.print(f"  Приложение: [bold]http://127.0.0.1:{port}[/bold]")
     console.print("  [dim]остановить — Ctrl+C[/dim]\n")
 
