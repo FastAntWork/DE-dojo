@@ -1,0 +1,27 @@
+id: docker.basics
+title: "Docker: образы, контейнеры, тома, compose"
+track: docker
+level: 3
+phase: 1
+estimated_hours: 8
+prereq: [linux.terminal]
+job_tags: [docker, devops, etl, ci]
+
+objectives:
+  - "Объяснить разницу образа и контейнера и что происходит при docker run"
+  - "Прочитать Dockerfile и назвать, какие строки ломают кеширование слоёв"
+  - "Выбрать между томом и монтированием каталога и обосновать выбор"
+  - "Понять, почему контейнер не видит соседа по имени, и починить это"
+  - "Найти причину падения контейнера по логам и коду выхода"
+  - "Объяснить, чем контейнер отличается от виртуальной машины"
+
+theory:
+  read: theory/docker/docker.basics.md
+  rag_scope: [docker-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/docker.basics.yaml
+    difficulty: 0.6
+
+review_after_days: [1, 4, 12, 30]

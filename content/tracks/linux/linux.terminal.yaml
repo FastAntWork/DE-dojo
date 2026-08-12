@@ -1,0 +1,27 @@
+id: linux.terminal
+title: "Linux: терминал, файлы, процессы, диагностика"
+track: linux
+level: 2
+phase: 1
+estimated_hours: 6
+prereq: []
+job_tags: [linux, bash, devops, etl]
+
+objectives:
+  - "Найти нужные строки в гигабайтном логе, не открывая его целиком"
+  - "Собрать конвейер из нескольких команд и объяснить, что делает каждая"
+  - "Понять по выводу top и df, во что упёрся сервер"
+  - "Прочитать права доступа и исправить их осмысленно"
+  - "Объяснить разницу переменной окружения и переменной оболочки"
+  - "Найти процесс, занявший порт или съевший диск"
+
+theory:
+  read: theory/linux/linux.terminal.md
+  rag_scope: []
+
+tasks:
+  - type: quiz
+    file: quizzes/linux.terminal.yaml
+    difficulty: 0.5
+
+review_after_days: [1, 4, 12, 30]

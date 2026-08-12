@@ -1,0 +1,27 @@
+id: git.basics
+title: "Git: ветки, история, разрешение конфликтов"
+track: git
+level: 2
+phase: 1
+estimated_hours: 6
+prereq: []
+job_tags: [git, ci, teamwork]
+
+objectives:
+  - "Объяснить, что такое коммит, ветка и HEAD, и почему ветка дешева"
+  - "Восстановить потерянную работу после неудачной команды"
+  - "Выбрать между merge и rebase и обосновать выбор"
+  - "Разрешить конфликт слияния, понимая, что означают маркеры"
+  - "Отменить изменения тремя способами и сказать, какой безопасен в общей ветке"
+  - "Написать сообщение коммита, полезное тому, кто будет читать историю через год"
+
+theory:
+  read: theory/git/git.basics.md
+  rag_scope: [git-docs]
+
+tasks:
+  - type: quiz
+    file: quizzes/git.basics.yaml
+    difficulty: 0.5
+
+review_after_days: [1, 4, 12, 30]
