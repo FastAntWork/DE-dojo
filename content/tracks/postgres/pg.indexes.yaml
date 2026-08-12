@@ -23,5 +23,10 @@ tasks:
   - type: quiz
     file: quizzes/pg.indexes.yaml
     difficulty: 0.7
+  - type: lab
+    path: labs/index-only-scan
+    variants: 3
+    timeout_min: 45
+    difficulty: 0.8
 
 review_after_days: [1, 4, 12, 30]

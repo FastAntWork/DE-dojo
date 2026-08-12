@@ -147,14 +147,46 @@ async def reset_stand(base_dsn: str, lab: Lab, variant: int) -> str:
     await _recreate_database(base_dsn, lab.database)
     dsn = lab_dsn(base_dsn, lab.database)
 
+    body, maintenance = split_maintenance(seed.read_text(encoding="utf-8"))
+
     conn: asyncpg.Connection[asyncpg.Record] = await asyncpg.connect(dsn)
     try:
-        await conn.execute(seed.read_text(encoding="utf-8"))
+        if body.strip():
+            await conn.execute(body)
+        for statement in maintenance:
+            await conn.execute(statement)
     finally:
         await conn.close()
 
     logger.info("lab.stand.ready", lab=lab.name, variant=variant)
     return dsn
+
+
+def split_maintenance(sql: str) -> tuple[str, list[str]]:
+    """Делит seed на основную часть и обслуживающие команды.
+
+    Несколько команд в одном `execute` асинхронный драйвер отправляет простым
+    протоколом, и PostgreSQL оборачивает их в неявную транзакцию. VACUUM внутри
+    транзакции запрещён — а он нужен, например, лабе про Index Only Scan: без
+    него карта видимости остаётся пустой, и стенд получается не тем, который
+    задумывался.
+
+    Поэтому seed может объявить хвост, выполняемый по одной команде:
+
+        -- dojo:no-transaction
+        VACUUM ANALYZE orders;
+
+    Тот же приём и тот же маркер, что у раннера миграций. В этой части
+    допустимы только простые однострочные команды: она делится по `;`, и
+    долларовые кавычки в ней не поддерживаются.
+    """
+    marker = "-- dojo:no-transaction"
+    head, separator, tail = sql.partition(marker)
+    if not separator:
+        return sql, []
+
+    statements = [part.strip() for part in tail.split(";")]
+    return head, [part for part in statements if part and not part.startswith("--")]
 
 
 async def _recreate_database(base_dsn: str, database: str) -> None:
